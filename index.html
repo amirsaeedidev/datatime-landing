@@ -118,7 +118,7 @@
           "name": "برای شروع استفاده چه کار کنم؟",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "کافی است فرم درخواست دسترسی را در همین صفحه پر کنید؛ تیم دیتاتایم با شما تماس می‌گیرد و راه‌اندازی برنامه برای مجموعه‌ی شما را توضیح می‌دهد."
+            "text": "کافی است فرم درخواست دسترسی را در همان صفحه پر کنید؛ تیم دیتاتایم با شما تماس می‌گیرد و راه‌اندازی برنامه برای مجموعه‌ی شما را توضیح می‌دهد."
           }
         }
       ]
@@ -680,9 +680,9 @@ form.addEventListener('submit', function (e) {
   var code = String(data.discount || '').trim();
   var agent = null;
 
-  /* پیدا کردن نماینده از روی کد تخفیف */
-  var lookup = code && window.DTStore
-n    ? window.DTStore.findByCode(code).catch(function () { return null; })
+  /* پیدا کردن نماینده از روی کد تخفیف (اگر کدی وارد شده باشد) */
+  var lookup = (code && window.DTStore)
+    ? window.DTStore.findByCode(code).catch(function () { return null; })
     : Promise.resolve(null);
 
   lookup.then(function (found) {

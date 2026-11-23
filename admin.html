@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>پنل مدیریت دیتاتایم</title>
+<meta name="description" content="پنل مدیریت نمایندگان، کدهای تخفیف، فروش و بازدید دیتاتایم." />
+<!-- این صفحه خصوصی است و نباید ایندکس شود -->
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" />
+<link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<div class="bg"></div>
+<div class="orb o1"></div>
+<div class="orb o2"></div>
+<div class="orb o3"></div>
+
+<header class="site-header">
+  <div class="nav">
+    <a class="brand" href="./" aria-label="دیتاتایم — صفحه اصلی">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+      </span>
+      <span class="brand-text">DATATIME</span>
+    </a>
+    <nav class="nav-links" aria-label="ناوبری">
+      <span style="font-size:12.5px;font-weight:700;color:var(--ink-3)">پنل مدیریت</span>
+    </nav>
+    <div class="nav-cta">
+      <button class="btn btn-ghost btn-sm" id="logoutBtn" type="button">خروج</button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== در gate ورود ===== -->
+<div class="login-box" id="gate" hidden>
+  <h1 id="gateTitle">ورود به پنل مدیریت</h1>
+  <p class="sub" id="gateHint">برای مشاهده‌ی آمار، رمز پنل را وارد کنید.</p>
+  <form id="gateForm">
+    <div class="field">
+      <label for="gatePass">رمز پنل</label>
+      <input id="gatePass" type="password" autocomplete="current-password" required />
+    </div>
+    <button class="btn btn-solid btn-lg" type="submit" style="width:100%">ورود</button>
+  </form>
+</div>
+
+<!-- ===== پنل اصلی ===== -->
+<div class="wrap" id="panel" hidden>
+
+  <div class="adm-head">
+    <div>
+      <span class="eyebrow"><i></i> پنل مدیریت</span>
+      <h1 style="font-size:clamp(22px,3vw,32px)">داشبورد دیتاتایم</h1>
+    </div>
+    <span class="mode-badge" id="modeBadge">—</span>
+  </div>
+
+  <nav class="adm-tabs" aria-label="بخش‌های پنل">
+    <button type="button" class="on" data-view="dash">داشبورد</button>
+    <button type="button" data-view="agents">نمایندگان</button>
+    <button type="button" data-view="sales">فروش‌ها</button>
+    <button type="button" data-view="views">بازدیدها</button>
+    <button type="button" data-view="settings">تنظیمات</button>
+  </nav>
+
+  <!-- داشبورد -->
+  <section class="adm-view" id="view-dash">
+    <div class="adm-grid">
+      <div class="kpi card"><b id="kpiViewsToday">۰</b><span>بازدید امروز</span></div>
+      <div class="kpi card"><b id="kpiViews7">۰</b><span>بازدید ۷ روز اخیر</span></div>
+      <div class="kpi card"><b id="kpiSales">۰</b><span>کل درخواست‌ها</span></div>
+      <div class="kpi card"><b id="kpiAgents">۰</b><span>نمایندگان فعال</span></div>
+    </div>
+
+    <div class="panel-card">
+      <h2>بازدید ۷ روز اخیر</h2>
+      <div class="chart7" id="chart7"></div>
+    </div>
+
+    <div class="panel-card">
+      <h2>پرفروش‌ترین نمایندگان</h2>
+      <div class="table-wrap">
+        <table class="dt">
+          <thead><tr><th>نماینده</th><th>فروش</th></tr></thead>
+          <tbody id="topAgents"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- نمایندگان -->
+  <section class="adm-view" id="view-agents" hidden>
+    <div class="panel-card">
+      <h2>افزودن نماینده‌ی جدید</h2>
+      <form id="agentForm" class="input-row">
+        <div class="field">
+          <label for="agentName">نام نماینده</label>
+          <input id="agentName" type="text" required />
+        </div>
+        <div class="field">
+          <label for="agentPhone">شماره تماس</label>
+          <input id="agentPhone" type="tel" dir="ltr" />
+        </div>
+        <div class="field">
+          <label for="agentCode">کد تخفیف</label>
+          <input id="agentCode" type="text" dir="ltr" placeholder="DT-XXXX" required />
+        </div>
+        <button class="btn btn-solid" type="submit">افزودن</button>
+      </form>
+      <p style="font-size:12px;color:var(--ink-3);margin-top:12px">
+        کد تخفیف به‌صورت خودکار پیشنهاد می‌شود؛ می‌توانید آن را ویرایش کنید. این کد را به نماینده بدهید تا مشتری‌ها در فرم درخواست وارد کنند.
+      </p>
+    </div>
+
+    <div class="panel-card">
+      <h2>لیست نمایندگان</h2>
+      <div class="table-wrap">
+        <table class="dt">
+          <thead><tr><th>نام</th><th>تماس</th><th>کد تخفیف</th><th>فروش</th><th>عملیات</th></tr></thead>
+          <tbody id="agentsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- فروش‌ها -->
+  <section class="adm-view" id="view-sales" hidden>
+    <div class="panel-card">
+      <h2>درخواست‌ها و فروش‌ها</h2>
+      <p style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px">
+        هر درخواستی که از فرم سایت ثبت شود اینجا می‌آید — همراه با کد تخفیف واردشده و نماینده‌ی صاحب کد (در صورت معتبر بودن).
+      </p>
+      <button class="btn btn-ghost btn-sm" id="exportCsv" type="button">خروجی CSV</button>
+      <div class="table-wrap" style="margin-top:14px">
+        <table class="dt">
+          <thead><tr><th>تاریخ</th><th>نماینده</th><th>کد</th><th>وضعیت</th><th>مشتری</th><th>تلفن</th><th>نوع</th></tr></thead>
+          <tbody id="salesBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- بازدیدها -->
+  <section class="adm-view" id="view-views" hidden>
+    <div class="panel-card">
+      <h2>بازدید صفحات (۳۰ روز اخیر)</h2>
+      <div class="table-wrap">
+        <table class="dt">
+          <thead><tr><th>صفحه</th><th>امروز</th><th>مجموع</th></tr></thead>
+          <tbody id="viewsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- تنظیمات -->
+  <section class="adm-view" id="view-settings" hidden>
+    <div class="panel-card">
+      <h2>حالت ذخیره‌سازی داده</h2>
+      <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
+        <b id="settingsMode">—</b><br>
+        در حالت <b>دمو</b>، داده‌ها فقط در مرورگرِ همان کاربر ذخیره می‌شوند؛ یعنی بازدیدها و فروش‌هایی که
+        بازدیدکنندگانِ دیگر ثبت می‌کنند، به پنل شما نمی‌رسد. برای ذخیره‌ی واقعی داده‌ی همه‌ی کاربران،
+        یک پروژه‌ی رایگان Supabase بسازید، جدول‌های مستند در README را اجرا کنید و مقادیر
+        <code dir="ltr">SUPABASE_URL</code> و <code dir="ltr">SUPABASE_ANON_KEY</code> را در فایل
+        <code dir="ltr">assets/js/config.js</code> پر کنید. پس از آن پنل به‌صورت خودکار به حالت ابری می‌رود.
+      </p>
+    </div>
+
+    <div class="panel-card">
+      <h2>پشتیبان‌گیری</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="exportJson" type="button">دریافت فایل پشتیبان (JSON)</button>
+        <button class="btn btn-danger btn-sm" id="clearData" type="button">پاک‌کردن داده‌های محلی</button>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <h2>نکته‌ی امنیتی مهم</h2>
+      <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
+        رمز این پنل فقط سمت مرورگر ذخیره می‌شود و محافظت واقعی در برابر افراد دیگر نیست.
+        برای امنیت واقعی، هم Supabase را با سیاست‌های RLS مناسب تنظیم کنید و هم آدرس پنل را
+        فقط خودتان بدانید. این پنل برای موتورهای جستجو بسته شده است (noindex + robots.txt).
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<footer style="margin-top:30px">
+  <div class="wrap">
+    <div class="foot">
+      <span>© ۱۴۰۵ دیتاتایم</span>
+      <nav class="lnks" aria-label="لینک‌ها">
+        <a href="./">بازگشت به سایت</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0f1f4"/>
+      <stop offset="1" stop-color="#dfe3e9"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="txt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3f49"/>
+      <stop offset="0.5" stop-color="#111317"/>
+      <stop offset="1" stop-color="#3a3f49"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1060" cy="70" r="240" fill="#ffffff" opacity="0.85"/>
+  <circle cx="90" cy="600" r="280" fill="#c9cdd4" opacity="0.45"/>
+
+  <!-- کارت شیشه‌ای -->
+  <rect x="100" y="150" width="680" height="330" rx="46" fill="url(#glass)" stroke="#ffffff" stroke-width="2"/>
+  <g stroke="#5b6270" stroke-width="14" stroke-linecap="round" opacity="0.85">
+    <path d="M160 400V350"/>
+    <path d="M230 400V310"/>
+    <path d="M300 400V260"/>
+    <path d="M370 400V230"/>
+    <path d="M440 400V290"/>
+  </g>
+
+  <text x="120" y="300" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="900" fill="url(#txt)" letter-spacing="4">DATATIME</text>
+  <text x="124" y="368" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="bold" fill="#4b515b" direction="rtl" text-anchor="start">مدیریت هوشمند سالن و کلینیک</text>
+  <text x="124" y="420" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#8a909b" direction="rtl" text-anchor="start">تقویم جلالی · پیامک یادآوری · مالی · گزارش PDF</text>
+
+  <circle cx="950" cy="315" r="130" fill="#1b1f26"/>
+  <g stroke="#ffffff" stroke-width="16" stroke-linecap="round">
+    <path d="M900 350V318"/>
+    <path d="M933 350V280"/>
+    <path d="M966 350V300"/>
+    <path d="M999 350V328"/>
+  </g>
+</svg>

@@ -1,0 +1,10 @@
+# robots.txt — دیتاتایم
+# صفحات عمومی آزاد؛ پنل مدیریت بسته است.
+
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /admin
+
+# نقشه‌ی سایت
+Sitemap: https://amirsaeedidev.github.io/datatime-landing/sitemap.xml

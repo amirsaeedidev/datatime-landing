@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>پنل مدیریت دیتاتایم</title>
-<meta name="description" content="پنل مدیریت نمایندگان، کدهای تخفیف، فروش و بازدید دیتاتایم." />
+<meta name="description" content="پنل مدیریت نمایندگان، کدهای تخفیف، فروش، بازدید و مقالات دیتاتایم." />
 <!-- این صفحه خصوصی است و نباید ایندکس شود -->
 <meta name="robots" content="noindex, nofollow" />
 <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
@@ -35,7 +35,7 @@
   </div>
 </header>
 
-<!-- ===== در gate ورود ===== -->
+<!-- ===== گیت ورود ===== -->
 <div class="login-box" id="gate" hidden>
   <h1 id="gateTitle">ورود به پنل مدیریت</h1>
   <p class="sub" id="gateHint">برای مشاهده‌ی آمار، رمز پنل را وارد کنید.</p>
@@ -64,6 +64,7 @@
     <button type="button" data-view="agents">نمایندگان</button>
     <button type="button" data-view="sales">فروش‌ها</button>
     <button type="button" data-view="views">بازدیدها</button>
+    <button type="button" data-view="articles">مقالات</button>
     <button type="button" data-view="settings">تنظیمات</button>
   </nav>
 
@@ -133,6 +134,7 @@
       <h2>درخواست‌ها و فروش‌ها</h2>
       <p style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px">
         هر درخواستی که از فرم سایت ثبت شود اینجا می‌آید — همراه با کد تخفیف واردشده و نماینده‌ی صاحب کد (در صورت معتبر بودن).
+        اگر ربات تلگرام وصل باشد، همین لحظه در تلگرام هم خبر می‌گیرید.
       </p>
       <button class="btn btn-ghost btn-sm" id="exportCsv" type="button">خروجی CSV</button>
       <div class="table-wrap" style="margin-top:14px">
@@ -157,8 +159,49 @@
     </div>
   </section>
 
+  <!-- مقالات -->
+  <section class="adm-view" id="view-articles" hidden>
+    <div class="panel-card">
+      <h2>مقالات منتشرشده از تلگرام</h2>
+      <p style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px;line-height:2">
+        مقاله‌ها را مستقیم از ربات تلگرام منتشر کنید (راهنما در README). هر مقاله به‌صورت فایل استاتیک سئوشده
+        روی سایت قرار می‌گیرد و در همین‌جا فهرست می‌شود.<br>
+        حذف از این جدول فقط رکورد را پاک می‌کند؛ برای حذف کامل فایل، در ربات دستور
+        <code dir="ltr">/delete slug</code> را بفرستید.
+      </p>
+      <div class="table-wrap">
+        <table class="dt">
+          <thead><tr><th>عنوان</th><th>دسته</th><th>تاریخ</th><th>لینک</th><th>عملیات</th></tr></thead>
+          <tbody id="articlesBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <!-- تنظیمات -->
   <section class="adm-view" id="view-settings" hidden>
+    <div class="panel-card">
+      <h2>اتصال ربات تلگرام (اعلان درخواست‌ها)</h2>
+      <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
+        با اتصال ربات، هر درخواست جدید فرم (نام، تلفن، کد تخفیف و نماینده) همان لحظه برایتان در تلگرام ارسال می‌شود.
+        مقادیر این‌جا فقط برای <b>تست در همین مرورگر</b> ذخیره می‌شوند؛ برای اتصال واقعی (اعلان درخواست‌های همه‌ی کاربران)،
+        مقدارها را در <code dir="ltr">assets/js/config.js</code> قرار دهید.
+      </p>
+      <div class="input-row" style="margin-top:16px">
+        <div class="field">
+          <label for="tgToken">Bot Token</label>
+          <input id="tgToken" type="text" dir="ltr" placeholder="123456:ABC-DEF..." />
+        </div>
+        <div class="field">
+          <label for="tgChat">Chat ID</label>
+          <input id="tgChat" type="text" dir="ltr" placeholder="-1001234567890" />
+        </div>
+        <button class="btn btn-ghost" id="tgSave" type="button">ذخیره</button>
+        <button class="btn btn-solid" id="tgTest" type="button">ارسال پیام تست</button>
+      </div>
+      <p id="tgStatus" style="font-size:12.5px;margin-top:12px;color:var(--ink-3)"></p>
+    </div>
+
     <div class="panel-card">
       <h2>حالت ذخیره‌سازی داده</h2>
       <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
@@ -204,6 +247,7 @@
 
 <script src="assets/js/config.js"></script>
 <script src="assets/js/store.js"></script>
+<script src="assets/js/notify.js"></script>
 <script src="assets/js/admin.js"></script>
 </body>
 </html>

@@ -42,6 +42,7 @@
     gate.hidden = true;
     panel.hidden = false;
     renderMode();
+    initTelegramSettings();
     loadAll();
   }
 
@@ -71,12 +72,17 @@
 
   function renderMode() {
     var el = $("#modeBadge");
+    var modeText;
     if (store.mode === "cloud") {
       el.textContent = "حالت ابری: Supabase متصل است ✓";
       el.classList.add("cloud");
+      modeText = "حالت ابری (Supabase متصل است ✓) — داده‌ی همه‌ی کاربران در سرور ذخیره می‌شود.";
     } else {
       el.textContent = "حالت دمو: داده‌ها فقط در همین مرورگر ذخیره می‌شوند";
+      modeText = "حالت دمو — داده‌ها فقط در همین مرورگر ذخیره می‌شوند.";
     }
+    var sm = $("#settingsMode");
+    if (sm) sm.textContent = modeText;
   }
 
   /* ---------- تب‌ها ---------- */
@@ -92,21 +98,24 @@
   });
 
   /* ---------- بارگذاری داده ---------- */
-  var state = { agents: [], sales: [], views: [] };
+  var state = { agents: [], sales: [], views: [], articles: [] };
 
   function loadAll() {
     Promise.all([
       store.listAgents(),
       store.listSales(),
-      store.getViews(store.daysAgo(29))
+      store.getViews(store.daysAgo(29)),
+      store.listArticles()
     ]).then(function (res) {
       state.agents = res[0] || [];
       state.sales = res[1] || [];
       state.views = res[2] || [];
+      state.articles = res[3] || [];
       renderDashboard();
       renderAgents();
       renderSales();
       renderViews();
+      renderArticles();
     }).catch(function (err) {
       alert("خطا در خواندن داده‌ها: " + err.message);
     });
@@ -116,7 +125,7 @@
   function renderDashboard() {
     var today = store.today();
     var viewsToday = state.views.filter(function (v) { return v.date === today; }).length;
-    var views7 = state.views.filter(function (v) { v.date >= store.daysAgo(6); }).length;
+    var views7 = state.views.filter(function (v) { return v.date >= store.daysAgo(6); }).length;
 
     $("#kpiViewsToday").textContent = fa(viewsToday);
     $("#kpiViews7").textContent = fa(views7);
@@ -124,29 +133,29 @@
     $("#kpiAgents").textContent = fa(state.agents.length);
 
     /* نمودار ۷ روز اخیر */
+    var days = [];
+    for (var i = 6; i >= 0; i--) days.push(store.daysAgo(i));
+    var counts = days.map(function (d) {
+      return state.views.filter(function (v) { return v.date === d; }).length;
+    });
+    var max = Math.max.apply(null, counts.concat([1]));
+
     var chart = "";
-    for (var i = 6; i >= 0; i--) {
-      var d = store.daysAgo(i);
-      var count = state.views.filter(function (v) { return v.date === d; }).length;
-      var max = 1;
-      for (var j = 6; j >= 0; j--) {
-        var cj = state.views.filter(function (v) { return v.date === store.daysAgo(j); }).length;
-        if (cj > max) max = cj;
-      }
-      var h = Math.max(4, Math.round((count / max) * 100));
+    days.forEach(function (d, idx) {
+      var h = Math.max(4, Math.round((counts[idx] / max) * 100));
       chart += '<div class="col">' +
-        '<div class="bar" style="height:' + h + '%"><em>' + fa(count) + "</em></div>" +
+        '<div class="bar" style="height:' + h + '%"><em>' + fa(counts[idx]) + "</em></div>" +
         '<span class="lbl">' + faWeekday(d) + "</span></div>";
-    }
+    });
     $("#chart7").innerHTML = chart;
 
     /* برترین نمایندگان */
-    var counts = {};
+    var countsByName = {};
     state.sales.forEach(function (s) {
-      if (s.valid && s.agentName) counts[s.agentName] = (counts[s.agentName] || 0) + 1;
+      if (s.valid && s.agentName) countsByName[s.agentName] = (countsByName[s.agentName] || 0) + 1;
     });
-    var rows = Object.keys(counts)
-      .map(function (k) { return { name: k, n: counts[k] }; })
+    var rows = Object.keys(countsByName)
+      .map(function (k) { return { name: k, n: countsByName[k] }; })
       .sort(function (a, b) { return b.n - a.n; });
 
     $("#topAgents").innerHTML = rows.length
@@ -269,11 +278,83 @@
       : '<tr><td colspan="3" class="empty-note">هنوز بازدیدی ثبت نشده است.</td></tr>';
   }
 
-  /* ---------- تنظیمات ---------- */
+  /* ---------- مقالات ---------- */
+  function renderArticles() {
+    var body = $("#articlesBody");
+    if (!body) return;
+    body.innerHTML = state.articles.length
+      ? state.articles.map(function (a) {
+          return "<tr>" +
+            "<td><b>" + esc(a.title) + "</b></td>" +
+            "<td>" + esc(a.cat || "مقاله") + "</td>" +
+            "<td>" + esc(a.date || "") + "</td>" +
+            '<td><a href="blog/' + esc(a.slug) + '.html" target="_blank" rel="noopener" style="font-weight:700;color:#33415c">مشاهده ↗</a></td>' +
+            '<td><button class="btn btn-danger btn-sm" data-adel="' + esc(a.id) + '">حذف رکورد</button></td>' +
+            "</tr>";
+        }).join("")
+      : '<tr><td colspan="5" class="empty-note">هنوز مقاله‌ای از تلگرام منتشر نشده است. راهنما در README.</td></tr>';
+
+    body.querySelectorAll("[data-adel]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (!confirm("فقط رکورد این مقاله از لیست پاک شود؟ (فایل مقاله باقی می‌ماند)")) return;
+        store.deleteArticle(btn.dataset.adel).then(loadAll);
+      });
+    });
+  }
+
+  /* ---------- تنظیمات تلگرام ---------- */
+  function initTelegramSettings() {
+    var tokenEl = $("#tgToken");
+    var chatEl = $("#tgChat");
+    var statusEl = $("#tgStatus");
+    if (!tokenEl || !chatEl) return;
+
+    var C = window.DT_CONFIG || {};
+    try {
+      tokenEl.value = localStorage.getItem("dt_tg_token") || C.TELEGRAM_BOT_TOKEN || "";
+      chatEl.value = localStorage.getItem("dt_tg_chat") || C.TELEGRAM_CHAT_ID || "";
+    } catch (e) {}
+
+    if (window.DTNotify && DTNotify.isConfigured()) {
+      statusEl.textContent = "ربات متصل است ✓ — با دکمه‌ی تست یک پیام نمونه بفرستید.";
+    } else {
+      statusEl.textContent = "ربات هنوز تنظیم نشده است.";
+    }
+
+    $("#tgSave").addEventListener("click", function () {
+      try {
+        localStorage.setItem("dt_tg_token", tokenEl.value.trim());
+        localStorage.setItem("dt_tg_chat", chatEl.value.trim());
+      } catch (e) {}
+      statusEl.textContent = "در همین مرورگر ذخیره شد ✓ (برای اتصال واقعی، در config.js هم قرار دهید)";
+    });
+
+    $("#tgTest").addEventListener("click", function () {
+      statusEl.textContent = "در حال ارسال…";
+      if (!window.DTNotify) { statusEl.textContent = "خطا در بارگذاری ماژول اعلان."; return; }
+      if (!tokenEl.value.trim() || !chatEl.value.trim()) {
+        statusEl.textContent = "ابتدا توکن و Chat ID را وارد و ذخیره کنید.";
+        return;
+      }
+      try {
+        localStorage.setItem("dt_tg_token", tokenEl.value.trim());
+        localStorage.setItem("dt_tg_chat", chatEl.value.trim());
+      } catch (e) {}
+
+      DTNotify.send("✅ پیام تست از پنل مدیریت دیتاتایم — اتصال ربات برقرار است!")
+        .then(function (ok) {
+          statusEl.textContent = ok
+            ? "پیام تست ارسال شد ✓ تلگرام خود را چک کنید."
+            : "ارسال ناموفق — توکن یا Chat ID را بررسی کنید (و اینکه یک‌بار به ربات پیام Start داده باشید).";
+        });
+    });
+  }
+
+  /* ---------- تنظیمات: پشتیبان ---------- */
   $("#exportJson").addEventListener("click", function () {
     var data = {
       exportedAt: new Date().toISOString(),
-      agents: state.agents, sales: state.sales, views: state.views
+      agents: state.agents, sales: state.sales, views: state.views, articles: state.articles
     };
     var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     var a = document.createElement("a");
@@ -283,11 +364,12 @@
   });
 
   $("#clearData").addEventListener("click", function () {
-    if (!confirm("تمام داده‌های محلی (نمایندگان، فروش‌ها، بازدیدها) پاک شود؟")) return;
+    if (!confirm("تمام داده‌های محلی (نمایندگان، فروش‌ها، بازدیدها، مقالات) پاک شود؟")) return;
     try {
       localStorage.removeItem("dt_agents");
       localStorage.removeItem("dt_sales");
       localStorage.removeItem("dt_views");
+      localStorage.removeItem("dt_articles");
     } catch (e) {}
     loadAll();
   });

@@ -98,7 +98,8 @@
         <p>تجربه‌ها و نکات کاربردی درباره‌ی نوبت‌دهی، تقویم جلالی، پیامک و مدیریت مالی سالن و کلینیک.</p>
       </div>
 
-      <div class="blog-grid" style="margin-bottom:70px">
+      <!-- مقالات ثابت -->
+      <div class="blog-grid" id="blogGrid" style="margin-bottom:70px">
         <a class="blog-card card" href="taghvim-jalali-nobat-dehi.html">
           <span class="cat">نوبت‌دهی</span>
           <h2 style="font-size:17px">مدیریت نوبت‌دهی سالن با تقویم جلالی؛ راهنمای کامل</h2>
@@ -142,5 +143,56 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/store.js"></script>
 <script src="../assets/js/track.js"></script>
+<script>
+/* مقالات منتشرشده از ربات تلگرام — به‌صورت خودکار به همین لیست اضافه می‌شوند */
+(function () {
+  "use strict";
+  if (!window.DTStore) return;
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  DTStore.listArticles().then(function (articles) {
+    if (!articles || !articles.length) return;
+    var grid = document.getElementById("blogGrid");
+    if (!grid) return;
+
+    articles.forEach(function (a) {
+      var card = document.createElement("a");
+      card.className = "blog-card card";
+      card.href = (a.slug || "") + ".html";
+
+      var cat = document.createElement("span");
+      cat.className = "cat";
+      cat.textContent = a.cat || "مقاله";
+
+      var title = document.createElement("h2");
+      title.style.fontSize = "17px";
+      title.textContent = a.title || "بدون عنوان";
+
+      var excerpt = document.createElement("p");
+      excerpt.textContent = a.excerpt || "";
+
+      var meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML = "<span>" + esc(a.date || "") + "</span>";
+
+      var arrow = document.createElement("span");
+      arrow.className = "arrow";
+      arrow.textContent = "ادامه‌ی مطلب ←";
+
+      card.appendChild(cat);
+      card.appendChild(title);
+      card.appendChild(excerpt);
+      card.appendChild(meta);
+      card.appendChild(arrow);
+      grid.appendChild(card);
+    });
+  }).catch(function () { /* بی‌صدا */ });
+})();
+</script>
 </body>
 </html>

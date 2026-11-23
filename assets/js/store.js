@@ -9,7 +9,7 @@
   "use strict";
 
   var CFG = window.DT_CONFIG || {};
-  var KEYS = { agents: "dt_agents", sales: "dt_sales", views: "dt_views" };
+  var KEYS = { agents: "dt_agents", sales: "dt_sales", views: "dt_views", articles: "dt_articles" };
   var CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
 
   /* ---------- ابزار ---------- */
@@ -135,6 +135,19 @@
       return Promise.resolve(
         ls(KEYS.views, []).filter(function (v) { return v.date >= sinceDate; })
       );
+    },
+
+    /* ===== مقالات (منتشرشده از ربات تلگرام) ===== */
+    listArticles: function () {
+      if (CLOUD) return api("GET", "articles", null, "select=*&order=created_at.desc")
+        .catch(function () { return ls(KEYS.articles, []); });
+      return Promise.resolve(ls(KEYS.articles, []));
+    },
+
+    deleteArticle: function (id) {
+      if (CLOUD) return api("DELETE", "articles", null, "id=eq." + encodeURIComponent(id));
+      lsSet(KEYS.articles, ls(KEYS.articles, []).filter(function (a) { return a.id !== id; }));
+      return Promise.resolve(true);
     },
 
     /* ===== تنظیمات محلی ===== */

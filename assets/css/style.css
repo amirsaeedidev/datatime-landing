@@ -428,6 +428,40 @@ p{margin:0}
 .card .ico svg{width:21px;height:21px;stroke:#3f4550;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .card h3{font-size:15.5px;font-weight:800;margin-bottom:7px}
 .card p{font-size:13px;color:var(--ink-2);line-height:1.85}
+.card .more{
+  position:relative;z-index:2;display:inline-block;margin-top:10px;
+  font-size:12.5px;font-weight:700;color:#33415c;
+}
+.card .more:hover{color:var(--ink)}
+
+/* ============================================================
+   سؤالات پرتکرار (FAQ)
+   ============================================================ */
+.faq{display:grid;gap:12px;max-width:780px}
+.faq-item{
+  padding:20px 22px;border-radius:22px;
+  background:rgba(255,255,255,.55);
+  border:1px solid rgba(255,255,255,.82);
+  -webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);
+  box-shadow:var(--shadow-1), inset 0 1px 0 #fff;
+}
+.faq-item summary{
+  cursor:pointer;list-style:none;font-weight:800;font-size:15px;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{
+  content:"+";flex-shrink:0;font-size:22px;font-weight:400;color:var(--ink-3);
+  width:30px;height:30px;border-radius:10px;display:grid;place-items:center;
+  background:rgba(255,255,255,.7);border:1px solid #fff;
+}
+.faq-item[open] summary::after{content:"−"}
+.faq-item .a{
+  margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.06);
+  font-size:13.5px;color:var(--ink-2);line-height:2;
+}
+.faq-item .a a{font-weight:700;color:#33415c;border-bottom:1.5px solid rgba(51,65,92,.3)}
+.faq-item .a a:hover{color:var(--ink)}
 
 /* ============================================================
    دستیار هوش مصنوعی
@@ -531,6 +565,7 @@ p{margin:0}
   background:rgba(255,255,255,.75);border:1px solid #fff;
 }
 .blog-card h3{font-size:17px;line-height:1.55}
+.blog-card h2{font-size:17px;line-height:1.55}
 .blog-card p{font-size:13.5px;color:var(--ink-2);line-height:1.9}
 .blog-card .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--ink-3);font-weight:600}
 .blog-card .arrow{margin-top:auto;font-size:13px;font-weight:700;color:#33415c}
@@ -619,6 +654,7 @@ p{margin:0}
 }
 .panel-card h2{font-size:17px;margin-bottom:16px}
 .panel-card h3{font-size:14.5px;margin:18px 0 10px}
+.panel-card code{font-size:12px;background:rgba(255,255,255,.75);border:1px solid #fff;border-radius:7px;padding:2px 7px}
 
 .table-wrap{overflow-x:auto;border-radius:20px;border:1px solid rgba(255,255,255,.85);background:rgba(255,255,255,.5);box-shadow:var(--shadow-1)}
 table.dt{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
@@ -700,6 +736,7 @@ footer{padding:30px 0 40px}
   .req-form{grid-template-columns:1fr}
   .foot{justify-content:center;text-align:center}
   .related{padding:20px}
+  .faq-item{padding:16px 18px}
 }
 @media (prefers-reduced-motion: reduce){
   *{animation:none!important;transition:none!important}

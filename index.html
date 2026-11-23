@@ -33,7 +33,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" />
 <link rel="stylesheet" href="assets/css/style.css" />
 
-<!-- ===== JSON-LD: Organization + WebSite + SoftwareApplication ===== -->
+<!-- ===== JSON-LD: Organization + WebSite + SoftwareApplication + FAQPage ===== -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -76,6 +76,52 @@
         "گزارش‌گیری PDF"
       ],
       "publisher": { "@id": "https://amirsaeedidev.github.io/datatime-landing/#organization" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://amirsaeedidev.github.io/datatime-landing/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "دیتاتایم دقیقاً چه کاری انجام می‌دهد؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "دیتاتایم یک نرم‌افزار مدیریت مجموعه است که نوبت‌دهی با تقویم جلالی، پیامک یادآوری، مدیریت پرسنل و مشتریان، خدمات، امور مالی و پورسانت و گزارش‌گیری را در یک برنامه جمع می‌کند."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "آیا دیتاتایم از تقویم جلالی پشتیبانی می‌کند؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "بله؛ نوبت‌دهی و گزارش‌های دیتاتایم کاملاً بر پایه‌ی تقویم جلالی و هفته‌ی کاری شنبه تا جمعه طراحی شده است."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "یادآوری پیامکی نوبت چطور کار می‌کند؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "برای هر نوبت، پیامک یادآوری به‌صورت خودکار برای مشتری ارسال می‌شود و در صورت تغییر یا لغو نوبت هم مشتری اطلاع‌رسانی می‌شود؛ این کار نرخ غیبت را به‌شکل محسوسی کاهش می‌دهد."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "گزارش‌ها را چطور دریافت کنم؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "داشبورد دیتاتایم نمودارهای درآمد، هزینه و عملکرد پرسنل را به‌صورت لحظه‌ای نشان می‌دهد و می‌توانید از هر گزارش خروجی PDF بگیرید."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "برای شروع استفاده چه کار کنم؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "کافی است فرم درخواست دسترسی را در همین صفحه پر کنید؛ تیم دیتاتایم با شما تماس می‌گیرد و راه‌اندازی برنامه برای مجموعه‌ی شما را توضیح می‌دهد."
+          }
+        }
+      ]
     }
   ]
 }
@@ -284,12 +330,14 @@
         <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M8 14h2M14 14h2M8 17.5h2"/></svg></span>
         <h3>رزرو با تقویم جلالی</h3>
         <p>نوبت‌دهی بر پایه‌ی تقویم جلالی، نمایش زمان‌های آزاد و پیگیری وضعیت هر نوبت.</p>
+        <a class="more" href="blog/taghvim-jalali-nobat-dehi.html">راهنمای نوبت‌دهی با تقویم جلالی ←</a>
       </article>
 
       <article class="card reveal d2">
         <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 16H6c1.2-1.2 1.6-2.2 1.6-4V11a4.4 4.4 0 018.8 0v1c0 1.8.4 2.8 1.6 4z"/><path d="M10 19a2 2 0 004 0"/></svg></span>
         <h3>پیامک و یادآوری خودکار</h3>
         <p>ارسال پیامک یادآوری نوبت‌ها و اطلاع‌رسانی تغییرات یا لغو رزرو، خودکار.</p>
+        <a class="more" href="blog/taghvim-jalali-nobat-dehi.html">نحوه‌ی کاهش غیبت مشتری ←</a>
       </article>
 
       <article class="card reveal d3">
@@ -326,6 +374,7 @@
         <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1.3"/></svg></span>
         <h3>مدیریت مالی</h3>
         <p>ثبت درآمد و هزینه، محاسبه‌ی حقوق و پورسانت، کیف پول پرسنل و تسویه‌حساب.</p>
+        <a class="more" href="blog/eshtebat-mali-salon-zibaei.html">اشتباهات رایج مالی سالن ←</a>
       </article>
 
       <article class="card reveal d1">
@@ -413,6 +462,65 @@
   </div>
 </section>
 
+<!-- ================= سؤالات پرتکرار ================= -->
+<section class="section" id="faq" style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow"><i></i> سؤالات پرتکرار</span>
+      <h2>هر چیزی که باید بدونی</h2>
+    </div>
+
+    <div class="faq reveal">
+      <details class="faq-item" open>
+        <summary>دیتاتایم دقیقاً چه کاری انجام می‌دهد؟</summary>
+        <div class="a">
+          دیتاتایم یک نرم‌افزار مدیریت مجموعه است که نوبت‌دهی با تقویم جلالی، پیامک یادآوری،
+          مدیریت پرسنل و مشتریان، خدمات، امور مالی و پورسانت و گزارش‌گیری را در یک برنامه جمع می‌کند.
+          <a href="#features">لیست کامل امکانات را این‌جا ببینید</a>.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>آیا از تقویم جلالی پشتیبانی می‌شود؟</summary>
+        <div class="a">
+          بله؛ کل سیستم نوبت‌دهی و گزارش‌های دیتاتایم بر پایه‌ی تقویم جلالی و هفته‌ی کاری شنبه تا جمعه
+          طراحی شده است. برای جزئیات بیشتر،
+          <a href="blog/taghvim-jalali-nobat-dehi.html">راهنمای کامل نوبت‌دهی با تقویم جلالی</a>
+          را بخوانید.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>یادآوری پیامکی نوبت چطور کار می‌کند؟</summary>
+        <div class="a">
+          برای هر نوبت ثبت‌شده، پیامک یادآوری به‌صورت خودکار برای مشتری ارسال می‌شود و در صورت
+          تغییر یا لغو نوبت هم مشتری اطلاع‌رسانی می‌شود. این ساده‌ترین راه برای کاهش غیبت مشتریان است —
+          <a href="blog/taghvim-jalali-nobat-dehi.html">در این مقاله بیشتر توضیح داده‌ایم</a>.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>گزارش‌ها را چطور دریافت کنم؟</summary>
+        <div class="a">
+          داشبورد دیتاتایم نمودارهای درآمد، هزینه و عملکرد پرسنل را لحظه‌ای نشان می‌دهد و از هر گزارش
+          می‌توانید خروجی PDF بگیرید. اگر از حاشیه‌ی سود نگرانید،
+          <a href="blog/eshtebat-mali-salon-zibaei.html">۷ اشتباه رایج مالی سالن زیبایی</a>
+          را حتماً بخوانید.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>برای شروع استفاده چه کار کنم؟</summary>
+        <div class="a">
+          کافی است <a href="#request">فرم درخواست دسترسی</a> را در همین صفحه پر کنید؛
+          تیم دیتاتایم با شما تماس می‌گیرد و راه‌اندازی برنامه برای مجموعه‌ی شما را توضیح می‌دهد.
+          اگر کد تخفیف نماینده دارید، آن را در همان فرم وارد کنید.
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
 <!-- ================= فرم درخواست ================= -->
 <section class="section" id="request" style="padding-top:20px">
   <div class="wrap">
@@ -486,6 +594,7 @@
         <a href="#features">امکانات</a>
         <a href="#ai">دستیار هوشمند</a>
         <a href="blog/">مقالات</a>
+        <a href="#faq">سؤالات پرتکرار</a>
         <a href="#request">درخواست دسترسی</a>
       </nav>
       <span>© ۱۴۰۵ دیتاتایم — همه‌ی حقوق محفوظ است.</span>
@@ -496,6 +605,7 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/store.js"></script>
 <script src="assets/js/track.js"></script>
+<script src="assets/js/notify.js"></script>
 <script>
 /* ===== منطق صفحه‌ی اصلی ===== */
 
@@ -543,7 +653,7 @@ if (matchMedia('(pointer:fine)').matches && phone) {
   });
 }
 
-/* ===== فرم درخواست + کد تخفیف ===== */
+/* ===== فرم درخواست + کد تخفیف + اعلان تلگرام ===== */
 var form = document.getElementById('reqForm');
 var okBox = document.getElementById('formOk');
 var okTitle = document.getElementById('formOkTitle');
@@ -572,7 +682,7 @@ form.addEventListener('submit', function (e) {
 
   /* پیدا کردن نماینده از روی کد تخفیف */
   var lookup = code && window.DTStore
-    ? window.DTStore.findByCode(code).catch(function () { return null; })
+n    ? window.DTStore.findByCode(code).catch(function () { return null; })
     : Promise.resolve(null);
 
   lookup.then(function (found) {
@@ -591,6 +701,14 @@ form.addEventListener('submit', function (e) {
           msg: data.msg || ''
         })
       : Promise.resolve();
+
+    /* اعلان تلگرام به مدیر — غیرمسدودکننده */
+    if (window.DTNotify) {
+      DTNotify.sale({
+        name: data.name, phone: phoneNum, type: data.type,
+        code: code, agent: agent ? agent.name : '', msg: data.msg
+      });
+    }
 
     var hookPromise = CFG.FORM_ENDPOINT
       ? fetch(CFG.FORM_ENDPOINT, {

@@ -14,10 +14,22 @@
 |---|---|---|
 | `SUPABASE_URL` و `SUPABASE_ANON_KEY` | `assets/js/config.js` (عمومی) | طبق طراحی Supabase عمومی‌اند؛ امنیت از RLS می‌آید |
 | `NOTIFY_FUNCTION_URL` | `assets/js/config.js` (عمومی) | آدرس عمومی تابع؛ خودش JWT را بررسی می‌کند |
-| `TELEGRAM_BOT_TOKEN` | **فقط** Secrets توابع Supabase | تا کسی نتواند ربات را هک/اسپم کند |
+| `TELEGRAM_BOT_TOKEN` | **فقط** Secrets توابع Supabase (داشبورد) | تا کسی نتواند ربات را هک/اسپم کند |
 | `GITHUB_TOKEN` | **فقط** Secrets تابع `telegram-webhook` | دسترسی نوشتن روی ریپو |
 | `SUPABASE_SERVICE_ROLE_KEY` | به‌صورت خودکار در توابع | دور از مرورگر |
 | رمز پنل مدیریت | یک کاربر واقعی در Authentication | ورود با Supabase Auth |
+
+### کد تابع روی گیت‌هاب امن است؟
+
+بله ✅ — فایل `supabase/functions/*/index.ts` هیچ توکنی داخلش ندارد؛ همه‌ی مقادیر حساس را
+زمان اجرا از `Deno.env` (Secrets سرور Supabase) می‌خواند. پس اینکه کد روی ریپوی عمومی باشد
+مشکلی ایجاد نمی‌کند. چیزهایی که هرگز وارد ریپو نمی‌شوند:
+
+- `TELEGRAM_BOT_TOKEN` · `GITHUB_TOKEN` · `SUPABASE_SERVICE_ROLE_KEY`
+
+این‌ها فقط در **Supabase → Edge Functions → [تابع] → Secrets** ثبت می‌شوند — این همان
+«environment variable امن سمت سرور» است. GitHub Environment Secrets فقط برای اجرای
+GitHub Actions کاربرد دارد و در معماری ما (استقرار از داشبورد) جایی ندارد.
 
 > ⚠ اگر قبلاً توکن ربات را در `config.js` یا هر جای دیگری از ریپو گذاشته‌اید، همین حالا در
 > BotFather دستور `/revoke` بزنید و توکن جدید بگیرید.
@@ -29,9 +41,11 @@
 ├── admin.html                        پنل مدیریت (noindex)
 ├── 404.html · robots.txt · sitemap.xml · llms.txt
 ├── blog/                             لیست مقالات + مقالات
-├── supabase/functions/
-│   ├── telegram-webhook/             ربات انتشار مقاله از تلگرام (Verify JWT خاموش)
-│   └── notify/                       اعلان درخواست‌ها به تلگرام (Verify JWT روشن)
+├── supabase/
+│   ├── verify.sql                    بررسی سلامت دیتابیس
+│   └── functions/
+│       ├── telegram-webhook/         ربات انتشار مقاله از تلگرام (Verify JWT خاموش)
+│       └── notify/                   اعلان درخواست‌ها به تلگرام (Verify JWT روشن)
 └── assets/
     ├── css/style.css · img/favicon.svg · img/og-cover.svg
     └── js/config.js · store.js · track.js · notify.js · admin.js
@@ -87,41 +101,52 @@ alter table sales    enable row level security;
 alter table views    enable row level security;
 alter table articles enable row level security;
 
--- اگر قبلاً سیاست‌های قدیمی (public) را ساخته‌اید، اول پاک کنید:
-drop policy if exists "public agents"   on agents;
-drop policy if exists "public sales"    on sales;
-drop policy if exists "public views"    on views;
-drop policy if exists "public articles" on articles;
+-- اگر سیاست‌های قدیمی را ساخته‌اید، اول پاک کنید:
+drop policy if exists "public agents"        on agents;
+drop policy if exists "public sales"         on sales;
+drop policy if exists "public views"         on views;
+drop policy if exists "public articles"      on articles;
+drop policy if exists "agents_select_public" on agents;
+drop policy if exists "agents_insert_auth"   on agents;
+drop policy if exists "agents_update_auth"   on agents;
+drop policy if exists "agents_delete_auth"   on agents;
+drop policy if exists "agents_write_auth"    on agents;
+drop policy if exists "sales_insert_public"  on sales;
+drop policy if exists "sales_select_auth"    on sales;
+drop policy if exists "views_insert_public"  on views;
+drop policy if exists "views_select_auth"    on views;
+drop policy if exists "articles_select_public" on articles;
 
 -- نمایندگان: خواندن عمومی (برای اعتبارسنجی کد تخفیف)؛ نوشتن فقط مدیر
-drop policy if exists "agents_select_public" on agents;
-drop policy if exists "agents_write_auth"   on agents;
+-- ⚠ در Postgres هر سیاست فقط یک عملیات می‌پذیرد؛ پس سه سیاست جدا می‌سازیم:
 create policy "agents_select_public" on agents
   for select to anon, authenticated using (true);
-create policy "agents_write_auth" on agents
-  for insert, update, delete to authenticated using (true) with check (true);
+create policy "agents_insert_auth" on agents
+  for insert to authenticated with check (true);
+create policy "agents_update_auth" on agents
+  for update to authenticated using (true) with check (true);
+create policy "agents_delete_auth" on agents
+  for delete to authenticated using (true);
 
 -- درخواست‌ها: ثبت عمومی؛ خواندن فقط مدیر
-drop policy if exists "sales_insert_public" on sales;
-drop policy if exists "sales_select_auth"  on sales;
 create policy "sales_insert_public" on sales
   for insert to anon, authenticated with check (true);
 create policy "sales_select_auth" on sales
   for select to authenticated using (true);
 
 -- بازدیدها: ثبت عمومی؛ خواندن فقط مدیر
-drop policy if exists "views_insert_public" on views;
-drop policy if exists "views_select_auth"  on views;
 create policy "views_insert_public" on views
   for insert to anon, authenticated with check (true);
 create policy "views_select_auth" on views
   for select to authenticated using (true);
 
 -- مقالات: خواندن عمومی؛ نوشتن فقط با service role (بدون سیاست نوشتن)
-drop policy if exists "articles_select_public" on articles;
 create policy "articles_select_public" on articles
   for select to anon, authenticated using (true);
 ```
+
+**بررسی صحت اجرا:** فایل [`supabase/verify.sql`](supabase/verify.sql) را در SQL Editor اجرا کنید
+و خروجی هر بخش را با «مورد انتظار» داخل آن مقایسه کنید.
 
 **ساخت کاربر مدیر:** داشبورد → Authentication → Users → **Add user** → ایمیل و رمز (گزینه‌ی
 Auto Confirm را فعال کنید). با همین ایمیل/رمز وارد پنل می‌شوید.
@@ -216,6 +241,7 @@ https://api.telegram.org/bot<TOKEN>/getWebhookInfo
 
 | خطا | علت | راه‌حل |
 |---|---|---|
+| `429 Too Many Requests` | درخواست‌های پشت‌سرهم | چند ثانیه صبر کنید و فقط یک‌بار اجرا کنید |
 | `401 Unauthorized` | توکن ربات اشتباه یا فاصله/کاراکتر اضافی | توکن را از BotFather دوباره کپی کنید |
 | `400 bad webhook: An HTTPS URL must be provided` | آدرس تابع `http` است یا ناقص | آدرس کامل `https://<ref>.supabase.co/functions/v1/telegram-webhook` |
 | `400 bad webhook: specified URL is invalid` | غلط املایی در ref یا مسیر | آدرس را از صفحه‌ی تابع در داشبورد کپی کنید |
@@ -240,6 +266,20 @@ slug: address-maghale (اختیاری)
 ```
 
 دستورهای ربات: `/help` · `/list` (۱۰ مقاله‌ی آخر) · `/delete <slug>`
+
+## ⚠ حالت دمو در برابر حالت واقعی
+
+| حالت | رفتار |
+|---|---|
+| **دمو (بدون Supabase)** | داده در localStorage مرورگر همان کاربر؛ درخواست‌های کاربران دیگر به پنل شما نمی‌رسد |
+| **ابری (با Supabase)** | داده‌ی همه‌ی کاربران در دیتابیس مشترک؛ پنل همه‌چیز را می‌بیند |
+
+## نکات امنیتی
+
+- توکن ربات فقط در Secret تابع سروری نگه داشته می‌شود؛ کد سایت فقط تابع را صدا می‌زند.
+- رمز پنل در حالت ابری، واقعی است (Supabase Auth)؛ در حالت دمو سمت مرورگر است.
+- آدرس پنل را محرمانه نگه دارید (noindex + robots.txt فعال است).
+- سیاست‌های RLS خواندن داده‌های مشتری را فقط برای مدیرِ واردشده باز می‌کنند.
 
 ## افزودن مقاله‌ی دستی (بدون تلگرام)
 

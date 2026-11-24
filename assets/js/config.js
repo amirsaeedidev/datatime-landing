@@ -23,17 +23,17 @@ window.DT_CONFIG = {
   SITE_URL: "https://amirsaeedidev.github.io/datatime-landing",
 
   /* --- Supabase (عمومی طبق طراحی) --- */
-  SUPABASE_URL: "",        // مثال: "https://xxxx.supabase.co"
-  SUPABASE_ANON_KEY: "",   // کلید anon از Settings → API
+  SUPABASE_URL: "https://zeqleinqtzylqjwvtawp.supabase.co",        // مثال: "https://xxxx.supabase.co"
+  SUPABASE_ANON_KEY: "sb_publishable_cvQgVMiiP9_zjxIBP5pswA_jQPP8Nu-",   // کلید anon از Settings → API
 
   /* --- تابع اعلان تلگرام ---
      آدرس تابع notify: https://<ref>.supabase.co/functions/v1/notify */
-  NOTIFY_FUNCTION_URL: "",
+  NOTIFY_FUNCTION_URL: "https://zeqleinqtzylqjwvtawp.supabase.co/functions/v1/notify",
 
   /* --- تابع انتشار مقاله (پنل وب) ---
      آدرس تابع telegram-webhook: https://<ref>.supabase.co/functions/v1/telegram-webhook
      احراز هویت داخل خود تابع با توکن ورود مدیر انجام می‌شود. */
-  PUBLISH_FUNCTION_URL: "",
+  PUBLISH_FUNCTION_URL: "https://zeqleinqtzylqjwvtawp.supabase.co/functions/v1/telegram-webhook",
 
   /* --- وب‌هوک فرم (اختیاری) --- */
   FORM_ENDPOINT: ""

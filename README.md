@@ -4,81 +4,64 @@
 همراه با پنل مدیریت نمایندگان و کدهای تخفیف، آمار بازدید، بلاگ سئوشده و ربات تلگرام
 برای اعلان درخواست‌ها و انتشار مقاله از تلگرام.
 
+## 🔐 مدل امنیتی — این را اول بخوانید
+
+**قانون طلایی:** هر چیزی که مرورگر لازم داشته باشد، در نهایت در کدِ ارسال‌شده به کاربر است و
+با DevTools دیده می‌شود. GitHub Actions Secrets هم این را عوض نمی‌کند، چون خروجی build باز هم
+یک فایل استاتیک عمومی است. پس مقادیر حساس باید اصلاً به مرورگر نروند:
+
+| مقدار | کجا نگه داشته می‌شود | چرا |
+|---|---|---|
+| `SUPABASE_URL` و `SUPABASE_ANON_KEY` | `assets/js/config.js` (عمومی) | طبق طراحی Supabase عمومی‌اند؛ امنیت از RLS می‌آید |
+| `NOTIFY_FUNCTION_URL` | `assets/js/config.js` (عمومی) | آدرس عمومی تابع؛ خودش JWT را بررسی می‌کند |
+| `TELEGRAM_BOT_TOKEN` | **فقط** Secrets توابع Supabase | تا کسی نتواند ربات را هک/اسپم کند |
+| `GITHUB_TOKEN` | **فقط** Secrets تابع `telegram-webhook` | دسترسی نوشتن روی ریپو |
+| `SUPABASE_SERVICE_ROLE_KEY` | به‌صورت خودکار در توابع | دور از مرورگر |
+| رمز پنل مدیریت | یک کاربر واقعی در Authentication | ورود با Supabase Auth |
+
+> ⚠ اگر قبلاً توکن ربات را در `config.js` یا هر جای دیگری از ریپو گذاشته‌اید، همین حالا در
+> BotFather دستور `/revoke` بزنید و توکن جدید بگیرید.
+
 ## ساختار پروژه
 
 ```
 ├── index.html                        صفحه اصلی (فرم + کد تخفیف + FAQ + سئو)
 ├── admin.html                        پنل مدیریت (noindex)
-├── 404.html                          صفحه‌ی خطای ۴۰۴ سفارشی
-├── robots.txt · sitemap.xml · llms.txt
-├── blog/
-│   ├── index.html                    لیست مقالات (ثابت + داینامیک)
-│   └── *.html                        مقالات (دستی یا منتشرشده از تلگرام)
-├── supabase/
-│   └── functions/telegram-webhook/   ربات انتشار مقاله از تلگرام
+├── 404.html · robots.txt · sitemap.xml · llms.txt
+├── blog/                             لیست مقالات + مقالات
+├── supabase/functions/
+│   ├── telegram-webhook/             ربات انتشار مقاله از تلگرام (Verify JWT خاموش)
+│   └── notify/                       اعلان درخواست‌ها به تلگرام (Verify JWT روشن)
 └── assets/
-    ├── css/style.css                 استایل مشترک
-    ├── img/favicon.svg · og-cover.svg
-    └── js/
-        ├── config.js                 تنظیمات (Supabase / تلگرام / وب‌هوک)
-        ├── store.js                  لایه‌ی داده (localStorage / Supabase)
-        ├── track.js                  ثبت بازدید صفحات
-        ├── notify.js                 اعلان‌های تلگرام (سمت سایت)
-        └── admin.js                  منطق پنل مدیریت
+    ├── css/style.css · img/favicon.svg · img/og-cover.svg
+    └── js/config.js · store.js · track.js · notify.js · admin.js
 ```
 
 ## انتشار سایت
 
-`Settings → Pages → Deploy from a branch → main / (root)`
-سپس: `https://amirsaeedidev.github.io/datatime-landing/`
+`Settings → Pages → Deploy from a branch → main / (root)` →
+`https://amirsaeedidev.github.io/datatime-landing/`
 
 ## پنل مدیریت
 
-آدرس: `/admin.html` — بار اول یک رمز انتخاب می‌کنید (ذخیره سمت مرورگر).
+آدرس: `/admin.html`
+
+- **حالت ابری:** ورود با ایمیل + رمزِ یک کاربر Supabase (Authentication → Users → Add user).
+  خواندن داده‌ها فقط برای کاربر احراز هویت‌شده مجاز است (RLS).
+- **حالت دمو:** رمز محلی در مرورگر — فقط برای تست.
 
 | بخش | توضیح |
 |---|---|
 | داشبورد | بازدید امروز/۷روز، نمودار ۷ روزه، پرفروش‌ترین نمایندگان |
-| نمایندگان | افزودن/حذف با کد تخفیف اختصاصی (پیشنهاد خودکار کد) |
+| نمایندگان | افزودن/حذف با کد تخفیف اختصاصی |
 | فروش‌ها | همه‌ی درخواست‌ها + کد تخفیف + نماینده‌ی صاحب کد + خروجی CSV |
 | بازدیدها | نمایش هر صفحه (امروز / مجموع ۳۰ روز) |
 | مقالات | فهرست مقالات منتشرشده از تلگرام |
-| تنظیمات | تست ربات تلگرام، پشتیبان JSON، پاک‌سازی داده |
+| تنظیمات | تست اعلان تلگرام، پشتیبان JSON، پاک‌سازی داده |
 
-## 🤖 اتصال ربات تلگرام
+## 🗄 راه‌اندازی Supabase (یک‌بار)
 
-### بخش ۱) اعلان درخواست‌های فرم (۵ دقیقه — نیازی به Supabase ندارد)
-
-1. در تلگرام به [@BotFather](https://t.me/BotFather) پیام بدهید: `/newbot` → نام و یوزرنیم بدهید → توکن را بگیرید.
-2. به ربات خودتان `/start` بفرستید (تا بتواند به شما پیام دهد).
-3. Chat ID خود را بگیرید: به [@userinfobot](https://t.me/userinfobot) پیام بدهید یا
-   آدرس `https://api.telegram.org/bot<TOKEN>/getUpdates` را باز کنید.
-4. در `assets/js/config.js` مقدار `TELEGRAM_BOT_TOKEN` و `TELEGRAM_CHAT_ID` را پر کنید.
-
-از این پس هر درخواست فرم (نام، تلفن، نوع مجموعه، کد تخفیف و نماینده‌ی صاحب کد)
-همان لحظه در تلگرام شما ظاهر می‌شود. برای تست: پنل → تنظیمات → «ارسال پیام تست».
-
-### بخش ۲) انتشار مقاله از تلگرام (نیازمند Supabase)
-
-مقاله را در تلگرام می‌نویسید؛ ربات آن را به فایل HTML سئوشده تبدیل می‌کند،
-مستقیم روی همین ریپو commit می‌کند (سایت خودکار آپدیت می‌شود)، sitemap را به‌روز می‌کند
-و رکوردش را در دیتابیس ثبت می‌کند تا در لیست بلاگ و پنل ادمین دیده شود.
-
-> ## ⚠️ مهم: دو محیط متفاوت، دو نوع دستور
->
-> | محیط | چه چیزی در آن اجرا می‌شود |
-> |---|---|
-> | **SQL Editor** (داخل سایت supabase.com) | فقط و فقط کد SQL (که با `create table` شروع می‌شود) |
-> | **Terminal / PowerShell** (روی کامپیوتر خودتان) | دستوراتی که با `supabase` شروع می‌شوند |
->
-> اگر `supabase login` را در SQL Editor بگذارید همین خطای `syntax error at or near "supabase"` را می‌گیرید،
-> چون آن یک دستور ترمینال است نه SQL!
-
-**قدم ۱ — ربات و پروژه:** ربات بخش ۱ کافی است. یک پروژه‌ی رایگان در
-[supabase.com](https://supabase.com) بسازید و بازش کنید.
-
-**قدم ۲ — اجرای SQL (در SQL Editor):** از منوی چپ پروژه، **SQL Editor** را باز کنید و
-فقط این بلوک را Run کنید (هیچ چیز دیگری اضافه نکنید):
+در [supabase.com](https://supabase.com) پروژه‌ی رایگان بسازید و در **SQL Editor** فقط این بلوک را Run کنید:
 
 ```sql
 create table if not exists agents (
@@ -104,80 +87,140 @@ alter table sales    enable row level security;
 alter table views    enable row level security;
 alter table articles enable row level security;
 
-create policy "public agents"   on agents   for all using (true) with check (true);
-create policy "public sales"    on sales    for all using (true) with check (true);
-create policy "public views"    on views    for all using (true) with check (true);
-create policy "public articles" on articles for all using (true) with check (true);
+-- اگر قبلاً سیاست‌های قدیمی (public) را ساخته‌اید، اول پاک کنید:
+drop policy if exists "public agents"   on agents;
+drop policy if exists "public sales"    on sales;
+drop policy if exists "public views"    on views;
+drop policy if exists "public articles" on articles;
+
+-- نمایندگان: خواندن عمومی (برای اعتبارسنجی کد تخفیف)؛ نوشتن فقط مدیر
+drop policy if exists "agents_select_public" on agents;
+drop policy if exists "agents_write_auth"   on agents;
+create policy "agents_select_public" on agents
+  for select to anon, authenticated using (true);
+create policy "agents_write_auth" on agents
+  for insert, update, delete to authenticated using (true) with check (true);
+
+-- درخواست‌ها: ثبت عمومی؛ خواندن فقط مدیر
+drop policy if exists "sales_insert_public" on sales;
+drop policy if exists "sales_select_auth"  on sales;
+create policy "sales_insert_public" on sales
+  for insert to anon, authenticated with check (true);
+create policy "sales_select_auth" on sales
+  for select to authenticated using (true);
+
+-- بازدیدها: ثبت عمومی؛ خواندن فقط مدیر
+drop policy if exists "views_insert_public" on views;
+drop policy if exists "views_select_auth"  on views;
+create policy "views_insert_public" on views
+  for insert to anon, authenticated with check (true);
+create policy "views_select_auth" on views
+  for select to authenticated using (true);
+
+-- مقالات: خواندن عمومی؛ نوشتن فقط با service role (بدون سیاست نوشتن)
+drop policy if exists "articles_select_public" on articles;
+create policy "articles_select_public" on articles
+  for select to anon, authenticated using (true);
 ```
 
-**قدم ۳ — توکن گیت‌هاب:** در GitHub → Settings → Developer settings →
-Fine-grained tokens یک توکن با دسترسی **Contents: Read and write** فقط روی همین ریپو بسازید.
+**ساخت کاربر مدیر:** داشبورد → Authentication → Users → **Add user** → ایمیل و رمز (گزینه‌ی
+Auto Confirm را فعال کنید). با همین ایمیل/رمز وارد پنل می‌شوید.
 
-**قدم ۴ — دیپلوی تابع:** یکی از دو روش زیر (نتیجه یکی است):
+**تنظیمات سایت:** در `assets/js/config.js` مقادیر `SUPABASE_URL` و `SUPABASE_ANON_KEY`
+(از Settings → API) را پر کنید.
 
-#### روش A) از داشبورد Supabase — بدون ترمینال ⭐ ساده‌تر
+## 🤖 ربات تلگرام
 
-1. در پروژه، از منوی چپ **Edge Functions** را باز کنید.
-2. روی **Create a function** بزنید؛ نام آن را دقیقاً `telegram-webhook` بگذارید.
-3. گزینه‌ی **Verify JWT** را **خاموش** کنید (مهم — چون تلگرام با توکن Supabase کار نمی‌کند).
-4. کل محتوای فایل `supabase/functions/telegram-webhook/index.ts` از همین ریپو را
-   کپی کرده و جایگزین کد پیش‌فرض تابع کنید → Deploy.
-5. در همان صفحه، بخش **Secrets** تابع را باز کنید و این ۶ مقدار را اضافه کنید:
+### ۱) ساخت ربات و اعلان درخواست‌ها
+
+1. [@BotFather](https://t.me/BotFather) → `/newbot` → توکن را بگیرید.
+2. به ربات `/start` بفرستید.
+3. Chat ID خود را از [@userinfobot](https://t.me/userinfobot) بگیرید.
+4. در داشبورد Supabase: **Edge Functions → Create a function** → نام: `notify` →
+   **Verify JWT را روشن بگذارید** → کل محتوای `supabase/functions/notify/index.ts`
+   را جایگزین کد پیش‌فرض کنید → Deploy.
+5. در همان صفحه بخش **Secrets** تابع را باز کنید و اضافه کنید:
+   `TELEGRAM_BOT_TOKEN` و `TELEGRAM_CHAT_ID`.
+6. آدرس تابع را در `assets/js/config.js` به‌صورت `NOTIFY_FUNCTION_URL` بگذارید.
+7. تست: پنل → تنظیمات → «ارسال پیام تست».
+
+از این پس هر درخواست فرم، همان لحظه در تلگرام شما می‌رسد — بدون اینکه توکن ربات در کد سایت باشد.
+
+### ۲) انتشار مقاله از تلگرام
+
+مقاله را در تلگرام می‌نویسید؛ ربات فایل HTML سئوشده می‌سازد، روی همین ریپو commit می‌کند
+(سایت خودکار آپدیت می‌شود)، sitemap را به‌روز می‌کند و رکورد آن را در دیتابیس ثبت می‌کند.
+
+> ⚠ **دو محیط متفاوت:** SQL Editor فقط کد SQL می‌پذیرد؛ دستوراتی که با `supabase` شروع
+> می‌شوند (مثل `supabase login`) در **ترمینال** اجرا می‌شوند. اگر `supabase login` را در
+> SQL Editor بگذارید همین خطای `syntax error at or near "supabase"` را می‌گیرید.
+
+**قدم ۱ — توکن گیت‌هاب:** GitHub → Settings → Developer settings → Fine-grained tokens →
+دسترسی **Contents: Read and write** فقط روی همین ریپو.
+
+**قدم ۲ — استقرار تابع:**
+
+#### روش A) از داشبورد Supabase — بدون ترمینال ⭐
+
+1. **Edge Functions → Create a function** → نام دقیق: `telegram-webhook`
+2. **Verify JWT را خاموش کنید** ⚠️ (تلگرام توکن Supabase نمی‌فرستد)
+3. کل محتوای `supabase/functions/telegram-webhook/index.ts` را جایگزین کنید → Deploy
+4. در بخش **Secrets** همین تابع، این ۶ مقدار را اضافه کنید:
 
    | نام Secret | مقدار |
    |---|---|
-   | `GITHUB_TOKEN` | توکنی که در قدم ۳ ساختید |
+   | `GITHUB_TOKEN` | توکن گیت‌هاب |
    | `GITHUB_REPO` | `amirsaeedidev/datatime-landing` |
    | `SITE_URL` | `https://amirsaeedidev.github.io/datatime-landing` |
-   | `TELEGRAM_BOT_TOKEN` | توکن ربات از BotFather |
-   | `ADMIN_IDS` | عدد Chat ID شما (از @userinfobot) |
-   | `WEBHOOK_SECRET` | یک رمز دلخواه مثلاً `dt-secret-8f3k2` |
+   | `TELEGRAM_BOT_TOKEN` | توکن ربات |
+   | `ADMIN_IDS` | عدد Chat ID شما |
+   | `WEBHOOK_SECRET` | یک رمز دلخواه مثل `dt-secret-8f3k2` |
 
-   > `SUPABASE_URL` و `SUPABASE_SERVICE_ROLE_KEY` به‌صورت خودکار در تابع موجودند؛ کاری ندارید.
-
-6. آدرس تابع را از همان صفحه کپی کنید؛ چیزی شبیه:
-   `https://xxxxx.supabase.co/functions/v1/telegram-webhook`
+   > `SUPABASE_URL` و `SUPABASE_SERVICE_ROLE_KEY` خودکار در تابع موجودند.
 
 #### روش B) با CLI — در ترمینال (PowerShell / Terminal)
 
-نصب CLI (یک‌بار برای همیشه):
-
 ```bash
-npm install -g supabase
-```
-
-سپس در ترمینال (نه SQL Editor!):
-
-```bash
+npm install -g supabase          # یک‌بار
 supabase login
 supabase link --project-ref <REF>
 
 supabase secrets set \
-  GITHUB_TOKEN=ghp_xxxxxxxx \
+  GITHUB_TOKEN=ghp_xxx \
   GITHUB_REPO=amirsaeedidev/datatime-landing \
   SITE_URL=https://amirsaeedidev.github.io/datatime-landing \
-  TELEGRAM_BOT_TOKEN=123456:ABC-DEF \
+  TELEGRAM_BOT_TOKEN=123:ABC \
   ADMIN_IDS=123456789 \
-  WEBHOOK_SECRET=yek-ramz-tasadofi
+  WEBHOOK_SECRET=dt-secret-8f3k2
 
 supabase functions deploy telegram-webhook --no-verify-jwt
 ```
 
-**قدم ۵ — وصل کردن Webhook تلگرام:**
-
-این آدرس را در **مرورگر** باز کنید (جای `<...>` را پر کنید):
+**قدم ۳ — وصل کردن Webhook تلگرام:** این آدرس را در **مرورگر** باز کنید:
 
 ```
-https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=<آدرس-تابع-از-قدم-۴>&secret_token=<WEBHOOK_SECRET>
+https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=<آدرس-تابع>&secret_token=<WEBHOOK_SECRET>
 ```
 
-باید پاسخ `{"ok":true,...}` ببینید.
+باید `{"ok":true,...}` ببینید. سپس به ربات `/start` بفرستید — باید راهنما را جواب بدهد.
 
-**قدم ۶ — کلیدهای عمومی سایت:** در `assets/js/config.js` مقدار
-`SUPABASE_URL` و `SUPABASE_ANON_KEY` (از Settings → API پروژه) را پر کنید
-تا پنل و لیست مقالات داینامیک حالت ابری بگیرند.
+### 🔧 عیب‌یابی: setWebhook پاسخ false داد
 
-**تست نهایی:** به ربات خودتان `/start` بفرستید — باید راهنما را ببینید. تمام! 🎉
+این آدرس را در مرورگر باز کنید تا علت دقیق را ببینید:
+
+```
+https://api.telegram.org/bot<TOKEN>/getWebhookInfo
+```
+
+مقدار `last_error_message` و `url` را چک کنید. شایع‌ترین علت‌ها:
+
+| خطا | علت | راه‌حل |
+|---|---|---|
+| `401 Unauthorized` | توکن ربات اشتباه یا فاصله/کاراکتر اضافی | توکن را از BotFather دوباره کپی کنید |
+| `400 bad webhook: An HTTPS URL must be provided` | آدرس تابع `http` است یا ناقص | آدرس کامل `https://<ref>.supabase.co/functions/v1/telegram-webhook` |
+| `400 bad webhook: specified URL is invalid` | غلط املایی در ref یا مسیر | آدرس را از صفحه‌ی تابع در داشبورد کپی کنید |
+| `secret_token` نامعتبر | استفاده از حروف فارسی، فاصله یا کاراکتر خاص | فقط `A-Z a-z 0-9 _ -` استفاده کنید |
+| آدرس تابع در مرورگر 401 می‌دهد | Verify JWT روشن مانده | برای `telegram-webhook` خاموش، برای `notify` روشن |
 
 ### نحوه‌ی نوشتن مقاله در تلگرام
 
@@ -196,23 +239,7 @@ slug: address-maghale (اختیاری)
 [متن لینک](https://example.com)
 ```
 
-بعد از ارسال، ربات فایل را می‌سازد و لینک مقاله را برایتان می‌فرستد (~۱ دقیقه تا لایو شدن).
-
 دستورهای ربات: `/help` · `/list` (۱۰ مقاله‌ی آخر) · `/delete <slug>`
-
-## ⚠ حالت دمو در برابر حالت واقعی
-
-| حالت | رفتار |
-|---|---|
-| **دمو (بدون Supabase)** | داده در localStorage مرورگر همان کاربر؛ درخواست‌های کاربران دیگر به پنل شما نمی‌رسد |
-| **ابری (با Supabase)** | داده‌ی همه‌ی کاربران در دیتابیس مشترک؛ پنل همه‌چیز را می‌بیند |
-
-## نکات امنیتی
-
-- توکن ربات در `config.js` سمت کلاینت دیده می‌شود؛ فقط قابلیت «ارسال پیام» دارد.
-  برای انتشار مقاله، توکن فقط در Secret تابع سروری نگه داشته می‌شود.
-- رمز پنل سمت کلاینت است؛ آدرس پنل را محرمانه نگه دارید (noindex + robots.txt فعال است).
-- سیاست‌های RLS بالا برای شروع ساده‌اند؛ برای سخت‌گیری بیشتر، نوشتن را فقط با service role بگذارید.
 
 ## افزودن مقاله‌ی دستی (بدون تلگرام)
 

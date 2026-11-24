@@ -168,12 +168,49 @@
   <!-- مقالات -->
   <section class="adm-view" id="view-articles" hidden>
     <div class="panel-card">
-      <h2>مقالات منتشرشده از تلگرام</h2>
+      <h2>✍ نوشتن و انتشار مقاله</h2>
       <p style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px;line-height:2">
-        مقاله‌ها را مستقیم از ربات تلگرام منتشر کنید (راهنما در README). هر مقاله به‌صورت فایل استاتیک سئوشده
-        روی سایت قرار می‌گیرد و در همین‌جا فهرست می‌شود.<br>
-        حذف از این جدول فقط رکورد را پاک می‌کند؛ برای حذف کامل فایل، در ربات دستور
-        <code dir="ltr">/delete slug</code> را بفرستید.
+        مقاله‌ها به‌صورت فایل HTML سئوشده منتشر می‌شوند و sitemap خودکار به‌روز می‌شود.
+        فرمت متن: <code>## تیتر</code> · <code>### تیتر کوچک</code> · <code>- لیست</code> ·
+        <code>&gt; نقل‌قول</code> · <code>**پررنگ**</code> · <code>[لینک](آدرس)</code> · <code>![عکس](آدرس)</code>
+      </p>
+
+      <form id="articleForm">
+        <div class="field full">
+          <label for="artTitle">عنوان مقاله</label>
+          <input id="artTitle" type="text" placeholder="مثلاً: ۵ ترفند افزایش رزرو سالن" />
+        </div>
+        <div class="input-row" style="margin-top:12px">
+          <div class="field">
+            <label for="artSlug">آدرس (slug) — خالی = خودکار</label>
+            <input id="artSlug" type="text" dir="ltr" placeholder="tarfand-rozerv-salon" />
+          </div>
+          <div class="field">
+            <label for="artCat">دسته‌بندی</label>
+            <input id="artCat" type="text" placeholder="نوبت‌دهی" />
+          </div>
+        </div>
+        <div class="field full" style="margin-top:12px">
+          <label for="artBody">متن مقاله</label>
+          <textarea id="artBody" style="min-height:240px" placeholder="## تیتر اول&#10;&#10;پاراگراف اول…&#10;&#10;- نکته اول&#10;- نکته دوم&#10;&#10;![عکس](آدرس عکس)"></textarea>
+        </div>
+        <div class="input-row" style="margin-top:12px">
+          <div class="field">
+            <label for="artImage">عکس مقاله (ذخیره در Supabase Storage)</label>
+            <input id="artImage" type="file" accept="image/*" />
+          </div>
+          <button class="btn btn-ghost" id="artInsertImg" type="button">آپلود و درج در متن</button>
+          <button class="btn btn-solid" id="publishBtn" type="button">🚀 انتشار مقاله</button>
+        </div>
+        <p id="artStatus" style="font-size:12.5px;color:var(--ink-3);margin-top:12px"></p>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h2>مقالات منتشرشده</h2>
+      <p style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px">
+        مقاله‌ها از تلگرام یا همین پنل منتشر می‌شوند و این‌جا فهرست می‌شوند.
+        دکمه‌ی «حذف کامل» فایل + رکورد را با هم پاک می‌کند.
       </p>
       <div class="table-wrap">
         <table class="dt">
@@ -197,14 +234,22 @@
     </div>
 
     <div class="panel-card">
+      <h2>انتشار مقاله از پنل</h2>
+      <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
+        وضعیت: <b id="pubStatus">—</b><br>
+        برای انتشار از پنل، مقدار <code dir="ltr">PUBLISH_FUNCTION_URL</code> (آدرس تابع
+        <code dir="ltr">telegram-webhook</code>) در config.js تنظیم شده باشد و با کاربر مدیر وارد شده باشید.
+      </p>
+    </div>
+
+    <div class="panel-card">
       <h2>حالت ذخیره‌سازی داده</h2>
       <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
         <b id="settingsMode">—</b><br>
-        در حالت <b>دمو</b>، داده‌ها فقط در مرورگرِ همان کاربر ذخیره می‌شوند؛ یعنی بازدیدها و فروش‌هایی که
-        بازدیدکنندگانِ دیگر ثبت می‌کنند، به پنل شما نمی‌رسد. برای ذخیره‌ی واقعی داده‌ی همه‌ی کاربران،
-        یک پروژه‌ی رایگان Supabase بسازید، جدول‌های مستند در README را اجرا کنید و مقادیر
-        <code dir="ltr">SUPABASE_URL</code> و <code dir="ltr">SUPABASE_ANON_KEY</code> را در فایل
-        <code dir="ltr">assets/js/config.js</code> پر کنید. پس از آن پنل به‌صورت خودکار به حالت ابری می‌رود.
+        در حالت <b>دمو</b>، داده‌ها فقط در مرورگرِ همان کاربر ذخیره می‌شوند. برای ذخیره‌ی واقعی،
+        پروژه‌ی رایگان Supabase بسازید، جدول‌های README را اجرا کنید و مقادیر
+        <code dir="ltr">SUPABASE_URL</code> و <code dir="ltr">SUPABASE_ANON_KEY</code> را در
+        <code dir="ltr">assets/js/config.js</code> پر کنید.
       </p>
     </div>
 
@@ -220,7 +265,8 @@
       <h2>مدل امنیتی این پنل</h2>
       <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
         <b>حالت ابری:</b> ورود با ایمیل و رمزِ یک کاربر واقعی Supabase انجام می‌شود و خواندن داده‌ها
-        فقط برای کاربران احراز هویت‌شده مجاز است (سیاست‌های RLS).<br>
+        فقط برای کاربران احراز هویت‌شده مجاز است (سیاست‌های RLS). انتشار مقاله هم در تابع سرور،
+        با همین توکن احراز هویت می‌شود.<br>
         <b>حالت دمو:</b> رمز فقط در همین مرورگر ذخیره می‌شود و محافظت واقعی نیست.<br>
         این صفحه برای موتورهای جستجو بسته است (noindex + robots.txt).
       </p>

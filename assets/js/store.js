@@ -1,9 +1,12 @@
 /* ============================================================
    لایه‌ی داده‌ی دیتاتایم (Data Layer)
    ------------------------------------------------------------
-   دو حالت کار می‌کند:
    • local : localStorage  → دمو / تست تک‌کاربره
    • cloud : Supabase REST → داده‌ی واقعی بین همه‌ی بازدیدکنندگان
+   ------------------------------------------------------------
+   در حالت ابری، پس از ورود مدیر (Supabase Auth) توکن کاربر به‌جای
+   کلید عمومی در هدر Authorization قرار می‌گیرد تا سیاست‌های RLS اجازه‌ی
+   خواندن داده‌ها را بدهند.
    ============================================================ */
 (function () {
   "use strict";
@@ -11,6 +14,10 @@
   var CFG = window.DT_CONFIG || {};
   var KEYS = { agents: "dt_agents", sales: "dt_sales", views: "dt_views", articles: "dt_articles" };
   var CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
+
+  /* توکن جلسه‌ی مدیر */
+  var authToken = null;
+  try { authToken = sessionStorage.getItem("dt_admin_token") || null; } catch (e) {}
 
   /* ---------- ابزار ---------- */
   function pad(n) { return String(n).length < 2 ? "0" + n : String(n); }
@@ -39,7 +46,7 @@
               "/rest/v1/" + table + (query ? "?" + query : "");
     var headers = {
       "apikey": CFG.SUPABASE_ANON_KEY,
-      "Authorization": "Bearer " + CFG.SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + (authToken || CFG.SUPABASE_ANON_KEY),
       "Content-Type": "application/json"
     };
     if (method === "POST") headers["Prefer"] = "return=representation";
@@ -48,6 +55,7 @@
       headers: headers,
       body: body ? JSON.stringify(body) : undefined
     }).then(function (res) {
+      if (res.status === 401) throw new Error("نشست شما منقضی شده؛ دوباره وارد شوید.");
       if (!res.ok) throw new Error("Supabase " + res.status);
       return res.status === 204 ? [] : res.json();
     });
@@ -60,18 +68,43 @@
     daysAgo: daysAgo,
     uid: uid,
 
+    /* ===== احراز هویت مدیر ===== */
+    setAuthToken: function (token) {
+      authToken = token || null;
+      try {
+        if (token) sessionStorage.setItem("dt_admin_token", token);
+        else sessionStorage.removeItem("dt_admin_token");
+      } catch (e) {}
+    },
+    hasAuthToken: function () { return !!authToken; },
+
+    login: function (email, password) {
+      return fetch(String(CFG.SUPABASE_URL).replace(/\/+$/, "") + "/auth/v1/token?grant_type=password", {
+        method: "POST",
+        headers: { "apikey": CFG.SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, password: password })
+      }).then(function (res) {
+        if (!res.ok) throw new Error("ایمیل یا رمز عبور اشتباه است.");
+        return res.json();
+      }).then(function (j) {
+        store.setAuthToken(j.access_token);
+        return j;
+      });
+    },
+
+    logout: function () { store.setAuthToken(null); },
+
     /* ===== نمایندگان ===== */
     listAgents: function () {
       if (CLOUD) return api("GET", "agents", null, "select=*&order=created_at.asc")
-        .catch(function () { return ls(KEYS.agents, []); });
+        .catch(function () { return []; });
       return Promise.resolve(ls(KEYS.agents, []));
     },
 
     saveAgent: function (agent) {
-      var row = Object.assign({
-        id: uid(), code: "", name: "", phone: "", createdAt: today()
-      }, agent);
-      if (CLOUD) return api("POST", "agents", [row]);
+      var row = Object.assign({ id: uid(), code: "", name: "", phone: "", createdAt: today() }, agent);
+      if (CLOUD) return api("POST", "agents", [row])
+        .then(function (rows) { return Array.isArray(rows) ? rows[0] : rows; });
       var list = ls(KEYS.agents, []); list.push(row); lsSet(KEYS.agents, list);
       return Promise.resolve(row);
     },
@@ -108,14 +141,29 @@
         customer: "", phone: "", type: "", msg: "",
         date: today(), ts: Date.now()
       }, sale);
-      if (CLOUD) return api("POST", "sales", [row]);
-      var list = ls(KEYS.sales, []); list.unshift(row); lsSet(KEYS.sales, list);
-      return Promise.resolve(row);
+
+      var p;
+      if (CLOUD) {
+        p = api("POST", "sales", [row])
+          .then(function (rows) { return Array.isArray(rows) ? rows[0] : rows; });
+      } else {
+        var list = ls(KEYS.sales, []); list.unshift(row); lsSet(KEYS.sales, list);
+        p = Promise.resolve(row);
+      }
+
+      /* اعلان تلگرام: بعد از ثبت، فقط با شناسه‌ی رکورد —
+         متن پیام در سرور از دیتابیس ساخته می‌شود و قابل جعل نیست */
+      return p.then(function (saved) {
+        if (saved && saved.id && window.DTNotify) {
+          try { window.DTNotify.sale(saved.id); } catch (e) {}
+        }
+        return saved;
+      });
     },
 
     listSales: function () {
       if (CLOUD) return api("GET", "sales", null, "select=*&order=ts.desc")
-        .catch(function () { return ls(KEYS.sales, []); });
+        .catch(function () { return []; });
       return Promise.resolve(ls(KEYS.sales, []));
     },
 
@@ -131,7 +179,7 @@
 
     getViews: function (sinceDate) {
       if (CLOUD) return api("GET", "views", null, "select=*&date=gte." + sinceDate)
-        .catch(function () { return ls(KEYS.views, []).filter(function (v) { return v.date >= sinceDate; }); });
+        .catch(function () { return []; });
       return Promise.resolve(
         ls(KEYS.views, []).filter(function (v) { return v.date >= sinceDate; })
       );
@@ -140,7 +188,7 @@
     /* ===== مقالات (منتشرشده از ربات تلگرام) ===== */
     listArticles: function () {
       if (CLOUD) return api("GET", "articles", null, "select=*&order=created_at.desc")
-        .catch(function () { return ls(KEYS.articles, []); });
+        .catch(function () { return []; });
       return Promise.resolve(ls(KEYS.articles, []));
     },
 

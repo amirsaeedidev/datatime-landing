@@ -1,67 +1,47 @@
 /* ============================================================
-   اعلان‌های تلگرام دیتاتایم
-   مقدارها از DT_CONFIG خوانده می‌شود؛ اگر خالی بود از override
-   محلی پنل مدیریت (localStorage) استفاده می‌شود — مناسب تست.
+   اعلان‌های تلگرام دیتاتایم — نسخه‌ی امن
+   ------------------------------------------------------------
+   توکن ربات دیگر در مرورگر نیست. این ماژول فقط تابع notify را در
+   Supabase صدا می‌زند؛ آن تابع رکورد را از دیتابیس می‌خواند و
+   پیام را با توکنی که در Secret سرور نگه داشته شده ارسال می‌کند.
    ============================================================ */
 (function () {
   "use strict";
 
-  function esc(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  }
+  var CFG = window.DT_CONFIG || {};
 
-  function cfg() {
-    var C = window.DT_CONFIG || {};
-    var token = C.TELEGRAM_BOT_TOKEN || "";
-    var chat = C.TELEGRAM_CHAT_ID || "";
-    try {
-      token = localStorage.getItem("dt_tg_token") || token;
-      chat = localStorage.getItem("dt_tg_chat") || chat;
-    } catch (e) {}
-    return { token: token, chat: chat };
+  function endpoint() {
+    return String(CFG.NOTIFY_FUNCTION_URL || "").trim();
   }
 
   var DTNotify = {
     isConfigured: function () {
-      var c = cfg();
-      return !!(c.token && c.chat);
+      return !!endpoint();
     },
 
-    /* ارسال پیام متنی به تلگرام — هرگز خطای آن صفحه را نمی‌شکند */
-    send: function (text) {
-      var c = cfg();
-      if (!c.token || !c.chat) return Promise.resolve(false);
-      return fetch("https://api.telegram.org/bot" + c.token + "/sendMessage", {
+    /* فراخوانی تابع سرور — با JWT عمومی سایت ( Supabase آن را تأیید می‌کند ) */
+    call: function (payload) {
+      if (!endpoint()) return Promise.resolve(false);
+      return fetch(endpoint(), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: c.chat,
-          text: text,
-          parse_mode: "HTML",
-          disable_web_page_preview: true
-        })
+        headers: {
+          "apikey": CFG.SUPABASE_ANON_KEY || "",
+          "Authorization": "Bearer " + (CFG.SUPABASE_ANON_KEY || ""),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
       }).then(function (r) { return r.ok; }).catch(function () { return false; });
     },
 
-    /* اعلان درخواست جدید فرم */
-    sale: function (s) {
-      var lines = [
-        "🔔 <b>درخواست جدید در سایت دیتاتایم</b>",
-        "",
-        "👤 نام: " + esc(s.name),
-        "📞 تلفن: " + esc(s.phone),
-        "🏷 مجموعه: " + esc(s.type || "—")
-      ];
-      if (s.code) {
-        lines.push("🎁 کد تخفیف: " + esc(s.code) +
-          (s.agent ? " — نماینده: " + esc(s.agent) + " ✓" : " — نامعتبر ✗"));
-      } else {
-        lines.push("🎁 کد تخفیف: بدون کد");
-      }
-      if (s.msg) lines.push("📝 توضیحات: " + esc(s.msg));
-      return DTNotify.send(lines.join("\n"));
+    /* اعلان یک درخواست ثبت‌شده — فقط با شناسه‌ی رکورد؛ متن پیام در سرور ساخته می‌شود */
+    sale: function (saleIdOrObj) {
+      var id = typeof saleIdOrObj === "string" ? saleIdOrObj : (saleIdOrObj && saleIdOrObj.saleId);
+      return id ? DTNotify.call({ saleId: id }) : Promise.resolve(false);
+    },
+
+    /* پیام تست از پنل مدیریت */
+    test: function () {
+      return DTNotify.call({ test: true });
     }
   };
 

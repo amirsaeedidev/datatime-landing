@@ -1,27 +1,22 @@
 /* ============================================================
-   ربات تلگرام دیتاتایم — انتشار مقاله از تلگرام
+   ربات تلگرام دیتاتایم — انتشار مقاله + عکس‌ها + پنل وب
    ------------------------------------------------------------
-   یک Supabase Edge Function که به‌عنوان Webhook تلگرام کار می‌کند.
-   وقتی پیام مقاله می‌فرستید، فایل HTML سئوشده‌ی مقاله را مستقیم روی
-   ریپوی گیت‌هاب commit می‌کند (سایت خودکار آپدیت می‌شود)، sitemap را
-   به‌روز می‌کند و رکورد آن را در جدول articles ثبت می‌کند.
+   سه مسیر در این تابع:
+   ۱) تلگرام (با X-Telegram-Bot-Api-Secret-Token): پیام مقاله، عکس، دکمه‌ها
+   ۲) پنل وب (با Authorization: Bearer <توکن Supabase Auth>): انتشار/حذف مقاله
+   ۳) بقیه: 403 با پیام گویا
 
-   راه‌اندازی (راهنمای کامل در README):
+   Secrets لازم:
+     TELEGRAM_BOT_TOKEN  — توکن ربات
+     GITHUB_TOKEN        — دسترسی Contents: Read & write روی ریپو
+     GITHUB_REPO         = owner/repo
+     SITE_URL            = آدرس سایت
+     ADMIN_IDS           = Chat ID های مجاز در تلگرام (با کاما)
+     WEBHOOK_SECRET      = رمز وب‌هوک (باید با setWebhook یکی باشد)
+     ADMIN_EMAILS        = اختیاری — ایمیل‌های مجاز پنل وب (با کاما)
 
-   1) supabase secrets set \
-        GITHUB_TOKEN=ghp_xxx \
-        GITHUB_REPO=amirsaeedidev/datatime-landing \
-        SITE_URL=https://amirsaeedidev.github.io/datatime-landing \
-        TELEGRAM_BOT_TOKEN=123:ABC \
-        ADMIN_IDS=123456789 \
-        WEBHOOK_SECRET=yek-ramz-tasadofi
-      (SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY به‌صورت خودکار موجودند)
-
-   2) supabase functions deploy telegram-webhook --no-verify-jwt
-
-   3) curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-        -d "url=https://<PROJECT>.supabase.co/functions/v1/telegram-webhook" \
-        -d "secret_token=<WEBHOOK_SECRET>"
+   ⚠ Verify JWT این تابع باید خاموش باشد (تلگرام توکن Supabase نمی‌فرستد)؛
+     احراز هویت مسیر وب داخل تابع با auth.getUser انجام می‌شود.
    ============================================================ */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -33,8 +28,11 @@ const BRANCH = Deno.env.get("BRANCH") ?? "main";
 const SITE_URL = (Deno.env.get("SITE_URL") ?? "").replace(/\/+$/, "");
 const ADMIN_IDS = (Deno.env.get("ADMIN_IDS") ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
+const ADMIN_EMAILS = (Deno.env.get("ADMIN_EMAILS") ?? "")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 const SECRET = Deno.env.get("WEBHOOK_SECRET") ?? "";
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
+const IMAGES_BUCKET = Deno.env.get("IMAGES_BUCKET") ?? "article-images";
 
 const SUPA_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPA_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -43,8 +41,16 @@ const supa = SUPA_URL && SUPA_KEY ? createClient(SUPA_URL, SUPA_KEY) : null;
 const GH = "https://api.github.com";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-telegram-bot-api-secret-token",
 };
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+}
 
 /* ---------- ابزار ---------- */
 function esc(s: string): string {
@@ -133,9 +139,47 @@ async function tg(method: string, payload: Record<string, unknown>) {
   });
   return res.json();
 }
-async function reply(chatId: number, text: string) {
-  return tg("sendMessage", { chat_id: chatId, text });
+async function reply(chatId: number, text: string, extra: Record<string, unknown> = {}) {
+  return tg("sendMessage", Object.assign({ chat_id: chatId, text }, extra));
 }
+
+/* ---------- عکس‌ها → Supabase Storage ---------- */
+async function uploadImageFromTelegram(fileId: string): Promise<string> {
+  const info = await tg("getFile", { file_id: fileId });
+  const filePath: string | undefined = info?.result?.file_path;
+  if (!filePath) throw new Error("getFile failed");
+  const ext = (String(filePath).split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const name = `blog/tg-${Date.now()}.${ext}`;
+
+  const bin = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
+  if (!bin.ok) throw new Error("image download failed");
+  const buf = new Uint8Array(await bin.arrayBuffer());
+
+  const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+  const up = await fetch(`${SUPA_URL}/storage/v1/object/${IMAGES_BUCKET}/${name}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${SUPA_KEY}`,
+      "Content-Type": mime,
+      "x-upsert": "true",
+    },
+    body: buf,
+  });
+  if (!up.ok) throw new Error("storage upload failed: " + (await up.text()).slice(0, 150));
+  return `${SUPA_URL}/storage/v1/object/public/${IMAGES_BUCKET}/${name}`;
+}
+
+/* ---------- دکمه‌های شیشه‌ای داخل چت ---------- */
+const MAIN_KB = {
+  inline_keyboard: [
+    [{ text: "📝 نوشتن مقاله", switch_inline_query_current_chat: "عنوان مقاله\n---\nمتن…" }],
+    [
+      { text: "🧭 راهنما", callback_data: "help" },
+      { text: "📋 مقالات اخیر", callback_data: "list" },
+    ],
+    [{ text: "🌐 مشاهده سایت", url: (SITE_URL || "https://example.com") + "/blog/" }],
+  ],
+};
 
 /* ---------- تبدیل متن به مقاله ---------- */
 interface Draft {
@@ -162,9 +206,9 @@ function parseDraft(text: string): Draft | null {
   let slug = "";
   let cat = "";
   for (const line of headLines.slice(1)) {
-    const m1 = line.match(/^(?:slug|کد)\s*:\s*(.+)$/i);
+    const m1 = line.match(/^(?:slug|code)\s*:\s*(.+)$/i);
     if (m1) slug = m1[1].trim();
-    const m2 = line.match(/^(?:cat|دسته)\s*:\s*(.+)$/i);
+    const m2 = line.match(/^(?:cat|category)\s*:\s*(.+)$/i);
     if (m2) cat = m2[1].trim();
   }
 
@@ -179,6 +223,7 @@ function parseDraft(text: string): Draft | null {
 
 function inline(s: string): string {
   return esc(s)
+    .replace(/!\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" loading="lazy" />')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" rel="noopener">$1</a>');
 }
@@ -221,7 +266,7 @@ function bodyToHtml(body: string): string {
 }
 
 function excerptOf(body: string): string {
-  const first = body.split(/\n/).find((l) => l.trim() && !/^[#>\-*]/.test(l.trim())) || "";
+  const first = body.split(/\n/).find((l) => l.trim() && !/^[#>\-!*\[]/.test(l.trim())) || "";
   const text = first.replace(/[*\[\]()#>]/g, "").trim();
   return text.length > 155 ? text.slice(0, 152) + "…" : text;
 }
@@ -231,7 +276,6 @@ function buildHtml(d: Draft): string {
   const U = SITE_URL;
   const url = `${U}/blog/${d.slug}.html`;
   const desc = excerptOf(d.body);
-  const dIso = isoDate();
   const dFull = isoDateTime();
   const dFa = faDate();
   const words = d.body.split(/\s+/).length;
@@ -267,6 +311,10 @@ function buildHtml(d: Draft): string {
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" />
 <link rel="stylesheet" href="../assets/css/style.css" />
+
+<style>
+.prose img{max-width:100%;height:auto;border-radius:18px;margin:10px 0;box-shadow:0 10px 24px -16px rgba(20,24,32,.5)}
+</style>
 
 <script type="application/ld+json">
 {
@@ -438,57 +486,78 @@ const HELP = `🎯 <b>ربات انتشار مقاله دیتاتایم</b>
 برای انتشار مقاله، پیامی با این قالب بفرستید:
 
 <b>عنوان مقاله</b>
-code: آدرس-اختیاری
+slug: آدرس-اختیاری
 دسته: دسته‌بندی
 ---
 متن مقاله…
 
+📷 عکس را همراه کپشن بفرستید تا در Supabase Storage ذخیره و در مقاله درج شود.
+
 در متن می‌توانید استفاده کنید:
 ## تیتر بخش  ·  ### تیتر کوچک
 - آیتم لیست  ·  &gt; نقل‌قول
-<b>متن پررنگ</b>  ·  [متن لینک](https://example.com)
+<b>متن پررنگ</b>  ·  [لینک](https://example.com)
+![عکس](https://...)
 
 دستورها:
 /help — این راهنما
 /list — ۱۰ مقاله‌ی آخر
 /delete &lt;slug&gt; — حذف مقاله`;
 
+async function sendList(chatId: number) {
+  if (!supa) { await reply(chatId, "اتصال دیتابیس تنظیم نشده است."); return; }
+  const { data } = await supa
+    .from("articles").select("title,slug,date")
+    .order("created_at", { ascending: false }).limit(10);
+  const list = (data ?? [])
+    .map((a: any, i: number) =>
+      `${i + 1}. <a href="${SITE_URL}/blog/${a.slug}.html">${esc(a.title)}</a> — ${a.date}`)
+    .join("\n");
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: list || "هنوز مقاله‌ای منتشر نشده است.",
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    reply_markup: MAIN_KB,
+  });
+}
+
 async function handleUpdate(u: any) {
+  /* دکمه‌های شیشه‌ای داخل چت */
+  if (u.callback_query) {
+    const cb = u.callback_query;
+    const chatId = cb.message?.chat?.id;
+    const fromId = String(cb.from?.id ?? "");
+    await tg("answerCallbackQuery", { callback_query_id: cb.id });
+    if (!chatId) return;
+    if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(fromId)) return;
+    if (cb.data === "help") {
+      await tg("sendMessage", { chat_id: chatId, text: HELP, parse_mode: "HTML", reply_markup: MAIN_KB });
+    } else if (cb.data === "list") {
+      await sendList(chatId);
+    }
+    return;
+  }
+
   const msg = u.message ?? u.edited_message;
-  if (!msg || !msg.text) return;
+  if (!msg) return;
+  const chatId = msg.chat?.id;
+  if (!chatId) return;
 
-  const chatId = msg.chat.id;
   const fromId = String(msg.from?.id ?? "");
-
   if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(fromId)) {
     await reply(chatId, "⛔ شما مجاز به استفاده از این ربات نیستید.");
     return;
   }
 
-  const text = msg.text.trim();
+  const text = String(msg.text ?? msg.caption ?? "").trim();
 
   if (text === "/start" || text === "/help" || text.startsWith("/help")) {
-    await tg("sendMessage", { chat_id: chatId, text: HELP, parse_mode: "HTML" });
+    await tg("sendMessage", { chat_id: chatId, text: HELP, parse_mode: "HTML", reply_markup: MAIN_KB });
     return;
   }
 
-  if (text.startsWith("/list")) {
-    if (!supa) { await reply(chatId, "اتصال دیتابیس تنظیم نشده است."); return; }
-    const { data } = await supa
-      .from("articles").select("title,slug,date")
-      .order("created_at", { ascending: false }).limit(10);
-    const list = (data ?? [])
-      .map((a: any, i: number) =>
-        `${i + 1}. <a href="${SITE_URL}/blog/${a.slug}.html">${esc(a.title)}</a> — ${a.date}`)
-      .join("\n");
-    await tg("sendMessage", {
-      chat_id: chatId,
-      text: list || "هنوز مقاله‌ای منتشر نشده است.",
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    });
-    return;
-  }
+  if (text.startsWith("/list")) { await sendList(chatId); return; }
 
   if (text.startsWith("/delete")) {
     const slug = text.split(/\s+/)[1];
@@ -503,14 +572,34 @@ async function handleUpdate(u: any) {
     return;
   }
 
+  /* عکس: ذخیره در Supabase Storage */
+  let attach = "";
+  if (Array.isArray(msg.photo) && msg.photo.length) {
+    try {
+      const biggest = msg.photo[msg.photo.length - 1];
+      attach = await uploadImageFromTelegram(biggest.file_id);
+      if (!text) {
+        await reply(chatId, "📷 عکس در Supabase Storage ذخیره شد. حالا کپشن مقاله را همراه آن بفرست.");
+        return;
+      }
+    } catch (e) {
+      await reply(chatId, "⚠️ آپلود عکس ناموفق بود: " + (e as Error).message);
+    }
+  }
+
+  if (!text) return;
+
   const draft = parseDraft(text);
   if (!draft) {
     await tg("sendMessage", {
       chat_id: chatId,
       text: "فرمت درست نیست. برای راهنما /help را بفرستید.",
+      reply_markup: MAIN_KB,
     });
     return;
   }
+
+  if (attach) draft.body = `![تصویر مقاله](${attach})\n\n` + draft.body;
 
   try {
     const url = await publish(draft);
@@ -521,9 +610,25 @@ async function handleUpdate(u: any) {
         "(تا ~۱ دقیقه دیگر روی سایت قابل مشاهده است.)",
       parse_mode: "HTML",
       disable_web_page_preview: true,
+      reply_markup: MAIN_KB,
     });
   } catch (e) {
     await reply(chatId, "❌ خطا در انتشار: " + (e as Error).message);
+  }
+}
+
+/* ---------- احراز هویت مسیر وب ---------- */
+async function isAllowedAdmin(req: Request): Promise<boolean> {
+  if (!supa) return false;
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return false;
+  try {
+    const { data, error } = await supa.auth.getUser(token);
+    if (error || !data?.user?.email) return false;
+    if (ADMIN_EMAILS.length === 0) return true; // هر کاربر احراز هویت‌شده
+    return ADMIN_EMAILS.includes(data.user.email.toLowerCase());
+  } catch {
+    return false;
   }
 }
 
@@ -532,26 +637,66 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   if (req.method === "GET") {
-    return new Response(
-      JSON.stringify({ ok: true, bot: "datatime-article-bot" }),
-      { headers: { ...CORS, "Content-Type": "application/json" } },
-    );
+    return json({ ok: true, bot: "datatime-article-bot" });
   }
 
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405, headers: CORS });
+    return json({ ok: false, error: "method not allowed" }, 405);
   }
 
-  if (SECRET && req.headers.get("x-telegram-bot-api-secret-token") !== SECRET) {
-    return new Response("forbidden", { status: 403, headers: CORS });
+  const secretHeader = req.headers.get("x-telegram-bot-api-secret-token") ?? "";
+  const authHeader = req.headers.get("authorization") ?? "";
+
+  /* مسیر ۱) تلگرام */
+  if (SECRET && secretHeader === SECRET) {
+    try {
+      await handleUpdate(await req.json());
+    } catch (e) {
+      console.error((e as Error).message);
+    }
+    return new Response("ok", { headers: CORS });
   }
 
-  try {
-    const update = await req.json();
-    await handleUpdate(update);
-  } catch (e) {
-    console.error((e as Error).message);
+  /* مسیر ۲) پنل وب — با توکن Supabase Auth */
+  if (authHeader) {
+    const allowed = await isAllowedAdmin(req);
+    if (!allowed) return json({ ok: false, error: "دسترسی مدیر ندارید." }, 403);
+
+    let body: any;
+    try { body = await req.json(); } catch { return json({ ok: false, error: "invalid json" }, 400); }
+
+    try {
+      if (body.action === "publish") {
+        const d: Draft = {
+          title: String(body.title ?? "").trim(),
+          slug: String(body.slug ?? "").trim(),
+          cat: String(body.cat ?? "").trim() || "مقاله",
+          body: String(body.body ?? "").trim(),
+        };
+        if (!d.title || !d.body) {
+          return json({ ok: false, error: "عنوان و متن مقاله الزامی است." }, 400);
+        }
+        const url = await publish(d);
+        return json({ ok: true, url });
+      }
+      if (body.action === "delete") {
+        const slug = String(body.slug ?? "");
+        if (!slug) return json({ ok: false, error: "slug لازم است." }, 400);
+        await deleteFile(`blog/${slug}.html`, `article: delete ${slug}`);
+        if (supa) await supa.from("articles").delete().eq("slug", slug);
+        return json({ ok: true });
+      }
+      return json({ ok: false, error: "unknown action" }, 400);
+    } catch (e) {
+      return json({ ok: false, error: (e as Error).message }, 500);
+    }
   }
 
-  return new Response("ok", { headers: CORS });
+  /* مسیر ۳) هیچ‌کدام — پیام گویا */
+  return json(
+    SECRET
+      ? { ok: false, error: "forbidden: secret header mismatch" }
+      : { ok: false, error: "forbidden: WEBHOOK_SECRET secret is not set on this function" },
+    403,
+  );
 });

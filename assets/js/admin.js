@@ -1,8 +1,9 @@
 /* ============================================================
    پنل مدیریت دیتاتایم
    ------------------------------------------------------------
-   ⚠ توجه: احراز هویت این پنل سمت کلاینت است و برای محافظت واقعی
-   از داده‌ها باید Supabase + RLS مناسب یا بک‌اند اختصاصی داشته باشید.
+   • حالت ابری: ورود واقعی با Supabase Auth (ایمیل + رمز)
+     و دسترسی به داده‌ها طبق سیاست‌های RLS.
+   • حالت دمو: رمز محلی در مرورگر (فقط برای تست).
    ============================================================ */
 (function () {
   "use strict";
@@ -29,7 +30,7 @@
     } catch (e) { return iso.slice(5); }
   }
 
-  /* ---------- احراز هویت ساده ---------- */
+  /* ---------- رمز محلی (فقط حالت دمو) ---------- */
   function hash(s) {
     var h = 5381;
     for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
@@ -37,6 +38,7 @@
   }
 
   var gate = $("#gate"), panel = $("#panel");
+  var IS_CLOUD = store.mode === "cloud";
 
   function openPanel() {
     gate.hidden = true;
@@ -46,9 +48,60 @@
     loadAll();
   }
 
+  function showGate() {
+    panel.hidden = true;
+    gate.hidden = false;
+
+    if (IS_CLOUD) {
+      $("#gateTitle").textContent = "ورود مدیر به دیتاتایم";
+      $("#gateHint").textContent = "با ایمیل و رمزی که در Supabase Authentication ساخته‌اید وارد شوید.";
+      var emailField = $("#emailField");
+      if (emailField) emailField.style.display = "";
+      var note = $("#gateNote");
+      if (note) {
+        note.innerHTML = "هنوز کاربر مدیر نساخته‌اید؟ در داشبورد Supabase:\\n" +
+          "<b>Authentication → Users → Add user</b> (Email + Password) — و سپس با همان ایمیل/رمز وارد شوید.";
+        note.style.whiteSpace = "pre-line";
+      }
+    } else {
+      var saved = localStorage.getItem("dt_admin_hash");
+      $("#gateTitle").textContent = saved ? "ورود به پنل مدیریت" : "تعیین رمز پنل";
+      $("#gateHint").textContent = saved
+        ? "برای مشاهده‌ی آمار، رمز پنل را وارد کنید."
+        : "اولین ورود است؛ یک رمز برای پنل انتخاب کنید (حداقل ۴ نویسه).";
+      var ef = $("#emailField");
+      if (ef) ef.style.display = "none";
+      var n2 = $("#gateNote");
+      if (n2) n2.textContent = "";
+    }
+  }
+
   $("#gateForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var pass = $("#gatePass").value;
+    var btn = $("#gateBtn");
+
+    if (IS_CLOUD) {
+      var email = $("#gateEmail").value.trim();
+      if (!email || pass.length < 6) {
+        alert("ایمیل و رمز عبور را کامل وارد کنید.");
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "در حال ورود…";
+      store.login(email, pass).then(function () {
+        sessionStorage.setItem("dt_admin_ok", "1");
+        openPanel();
+      }).catch(function (err) {
+        alert(err.message || "ورود ناموفق بود.");
+      }).finally(function () {
+        btn.disabled = false;
+        btn.textContent = "ورود";
+      });
+      return;
+    }
+
+    /* --- حالت دمو --- */
     if (pass.length < 4) { alert("رمز باید حداقل ۴ نویسه باشد."); return; }
     var saved = localStorage.getItem("dt_admin_hash");
     if (!saved) {
@@ -67,6 +120,7 @@
 
   $("#logoutBtn").addEventListener("click", function () {
     sessionStorage.removeItem("dt_admin_ok");
+    if (store.logout) store.logout();
     location.reload();
   });
 
@@ -76,7 +130,7 @@
     if (store.mode === "cloud") {
       el.textContent = "حالت ابری: Supabase متصل است ✓";
       el.classList.add("cloud");
-      modeText = "حالت ابری (Supabase متصل است ✓) — داده‌ی همه‌ی کاربران در سرور ذخیره می‌شود.";
+      modeText = "حالت ابری (Supabase متصل است ✓) — داده‌ی همه‌ی کاربران در سرور ذخیره می‌شود و فقط مدیرِ واردشده آن را می‌خواند.";
     } else {
       el.textContent = "حالت دمو: داده‌ها فقط در همین مرورگر ذخیره می‌شوند";
       modeText = "حالت دمو — داده‌ها فقط در همین مرورگر ذخیره می‌شوند.";
@@ -117,6 +171,12 @@
       renderViews();
       renderArticles();
     }).catch(function (err) {
+      if (/منقضی|401/.test(err.message || "")) {
+        alert("نشست شما منقضی شده؛ دوباره وارد شوید.");
+        store.logout && store.logout();
+        location.reload();
+        return;
+      }
       alert("خطا در خواندن داده‌ها: " + err.message);
     });
   }
@@ -132,7 +192,6 @@
     $("#kpiSales").textContent = fa(state.sales.length);
     $("#kpiAgents").textContent = fa(state.agents.length);
 
-    /* نمودار ۷ روز اخیر */
     var days = [];
     for (var i = 6; i >= 0; i--) days.push(store.daysAgo(i));
     var counts = days.map(function (d) {
@@ -149,7 +208,6 @@
     });
     $("#chart7").innerHTML = chart;
 
-    /* برترین نمایندگان */
     var countsByName = {};
     state.sales.forEach(function (s) {
       if (s.valid && s.agentName) countsByName[s.agentName] = (countsByName[s.agentName] || 0) + 1;
@@ -302,52 +360,33 @@
     });
   }
 
-  /* ---------- تنظیمات تلگرام ---------- */
+  /* ---------- تنظیمات: اعلان تلگرام ---------- */
   function initTelegramSettings() {
-    var tokenEl = $("#tgToken");
-    var chatEl = $("#tgChat");
     var statusEl = $("#tgStatus");
-    if (!tokenEl || !chatEl) return;
-
-    var C = window.DT_CONFIG || {};
-    try {
-      tokenEl.value = localStorage.getItem("dt_tg_token") || C.TELEGRAM_BOT_TOKEN || "";
-      chatEl.value = localStorage.getItem("dt_tg_chat") || C.TELEGRAM_CHAT_ID || "";
-    } catch (e) {}
+    if (!statusEl) return;
 
     if (window.DTNotify && DTNotify.isConfigured()) {
-      statusEl.textContent = "ربات متصل است ✓ — با دکمه‌ی تست یک پیام نمونه بفرستید.";
+      statusEl.textContent = "تابع notify تنظیم شده است ✓";
     } else {
-      statusEl.textContent = "ربات هنوز تنظیم نشده است.";
+      statusEl.textContent = "تابع notify هنوز تنظیم نشده — NOTIFY_FUNCTION_URL در config.js خالی است.";
     }
 
-    $("#tgSave").addEventListener("click", function () {
-      try {
-        localStorage.setItem("dt_tg_token", tokenEl.value.trim());
-        localStorage.setItem("dt_tg_chat", chatEl.value.trim());
-      } catch (e) {}
-      statusEl.textContent = "در همین مرورگر ذخیره شد ✓ (برای اتصال واقعی، در config.js هم قرار دهید)";
-    });
-
-    $("#tgTest").addEventListener("click", function () {
-      statusEl.textContent = "در حال ارسال…";
-      if (!window.DTNotify) { statusEl.textContent = "خطا در بارگذاری ماژول اعلان."; return; }
-      if (!tokenEl.value.trim() || !chatEl.value.trim()) {
-        statusEl.textContent = "ابتدا توکن و Chat ID را وارد و ذخیره کنید.";
-        return;
-      }
-      try {
-        localStorage.setItem("dt_tg_token", tokenEl.value.trim());
-        localStorage.setItem("dt_tg_chat", chatEl.value.trim());
-      } catch (e) {}
-
-      DTNotify.send("✅ پیام تست از پنل مدیریت دیتاتایم — اتصال ربات برقرار است!")
-        .then(function (ok) {
+    var testBtn = $("#tgTest");
+    if (testBtn) {
+      testBtn.addEventListener("click", function () {
+        statusEl.textContent = "در حال ارسال…";
+        if (!window.DTNotify) { statusEl.textContent = "ماژول اعلان بارگذاری نشده است."; return; }
+        if (!DTNotify.isConfigured()) {
+          statusEl.textContent = "ابتدا NOTIFY_FUNCTION_URL را در config.js تنظیم کنید.";
+          return;
+        }
+        DTNotify.test().then(function (ok) {
           statusEl.textContent = ok
-            ? "پیام تست ارسال شد ✓ تلگرام خود را چک کنید."
-            : "ارسال ناموفق — توکن یا Chat ID را بررسی کنید (و اینکه یک‌بار به ربات پیام Start داده باشید).";
+            ? "پیام تست ارسال شد ✓ تلگرام را چک کنید."
+            : "ارسال ناموفق — Secrets تابع notify (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) و Verify JWT را بررسی کنید.";
         });
-    });
+      });
+    }
   }
 
   /* ---------- تنظیمات: پشتیبان ---------- */
@@ -375,15 +414,16 @@
   });
 
   /* ---------- شروع ---------- */
-  if (sessionStorage.getItem("dt_admin_ok") === "1") {
+  if (IS_CLOUD) {
+    if (store.hasAuthToken()) {
+      sessionStorage.setItem("dt_admin_ok", "1");
+      openPanel();
+    } else {
+      showGate();
+    }
+  } else if (sessionStorage.getItem("dt_admin_ok") === "1") {
     openPanel();
   } else {
-    var saved = localStorage.getItem("dt_admin_hash");
-    $("#gateTitle").textContent = saved ? "ورود به پنل مدیریت" : "تعیین رمز پنل";
-    $("#gateHint").textContent = saved
-      ? "برای مشاهده‌ی آمار، رمز پنل را وارد کنید."
-      : "اولین ورود است؛ یک رمز برای پنل انتخاب کنید (حداقل ۴ نویسه).";
-    gate.hidden = false;
-    panel.hidden = true;
+    showGate();
   }
 })();

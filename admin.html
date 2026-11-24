@@ -38,13 +38,19 @@
 <!-- ===== گیت ورود ===== -->
 <div class="login-box" id="gate" hidden>
   <h1 id="gateTitle">ورود به پنل مدیریت</h1>
-  <p class="sub" id="gateHint">برای مشاهده‌ی آمار، رمز پنل را وارد کنید.</p>
+  <p class="sub" id="gateHint">برای مشاهده‌ی آمار، وارد شوید.</p>
+
   <form id="gateForm">
+    <div class="field" id="emailField">
+      <label for="gateEmail">ایمیل مدیر</label>
+      <input id="gateEmail" type="email" autocomplete="username" placeholder="admin@example.com" />
+    </div>
     <div class="field">
-      <label for="gatePass">رمز پنل</label>
+      <label for="gatePass">رمز عبور</label>
       <input id="gatePass" type="password" autocomplete="current-password" required />
     </div>
-    <button class="btn btn-solid btn-lg" type="submit" style="width:100%">ورود</button>
+    <button class="btn btn-solid btn-lg" id="gateBtn" type="submit" style="width:100%">ورود</button>
+    <p class="sub" id="gateNote" style="margin-top:14px;margin-bottom:0"></p>
   </form>
 </div>
 
@@ -134,7 +140,7 @@
       <h2>درخواست‌ها و فروش‌ها</h2>
       <p style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px">
         هر درخواستی که از فرم سایت ثبت شود اینجا می‌آید — همراه با کد تخفیف واردشده و نماینده‌ی صاحب کد (در صورت معتبر بودن).
-        اگر ربات تلگرام وصل باشد، همین لحظه در تلگرام هم خبر می‌گیرید.
+        اگر تابع اعلان تلگرام وصل باشد، همان لحظه در تلگرام هم خبر می‌گیرید.
       </p>
       <button class="btn btn-ghost btn-sm" id="exportCsv" type="button">خروجی CSV</button>
       <div class="table-wrap" style="margin-top:14px">
@@ -181,25 +187,13 @@
   <!-- تنظیمات -->
   <section class="adm-view" id="view-settings" hidden>
     <div class="panel-card">
-      <h2>اتصال ربات تلگرام (اعلان درخواست‌ها)</h2>
+      <h2>اعلان تلگرام درخواست‌ها</h2>
       <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
-        با اتصال ربات، هر درخواست جدید فرم (نام، تلفن، کد تخفیف و نماینده) همان لحظه برایتان در تلگرام ارسال می‌شود.
-        مقادیر این‌جا فقط برای <b>تست در همین مرورگر</b> ذخیره می‌شوند؛ برای اتصال واقعی (اعلان درخواست‌های همه‌ی کاربران)،
-        مقدارها را در <code dir="ltr">assets/js/config.js</code> قرار دهید.
+        توکن ربات دیگر در کد سایت نیست. اعلان‌ها از تابع امن <code dir="ltr">notify</code> در Supabase
+        ارسال می‌شوند و توکن فقط در Secretهای سرور نگه داشته می‌شود.
+        <br>وضعیت: <b id="tgStatus">—</b>
       </p>
-      <div class="input-row" style="margin-top:16px">
-        <div class="field">
-          <label for="tgToken">Bot Token</label>
-          <input id="tgToken" type="text" dir="ltr" placeholder="123456:ABC-DEF..." />
-        </div>
-        <div class="field">
-          <label for="tgChat">Chat ID</label>
-          <input id="tgChat" type="text" dir="ltr" placeholder="-1001234567890" />
-        </div>
-        <button class="btn btn-ghost" id="tgSave" type="button">ذخیره</button>
-        <button class="btn btn-solid" id="tgTest" type="button">ارسال پیام تست</button>
-      </div>
-      <p id="tgStatus" style="font-size:12.5px;margin-top:12px;color:var(--ink-3)"></p>
+      <button class="btn btn-solid btn-sm" id="tgTest" type="button" style="margin-top:14px">ارسال پیام تست</button>
     </div>
 
     <div class="panel-card">
@@ -223,11 +217,12 @@
     </div>
 
     <div class="panel-card">
-      <h2>نکته‌ی امنیتی مهم</h2>
+      <h2>مدل امنیتی این پنل</h2>
       <p style="font-size:13.5px;color:var(--ink-2);line-height:2">
-        رمز این پنل فقط سمت مرورگر ذخیره می‌شود و محافظت واقعی در برابر افراد دیگر نیست.
-        برای امنیت واقعی، هم Supabase را با سیاست‌های RLS مناسب تنظیم کنید و هم آدرس پنل را
-        فقط خودتان بدانید. این پنل برای موتورهای جستجو بسته شده است (noindex + robots.txt).
+        <b>حالت ابری:</b> ورود با ایمیل و رمزِ یک کاربر واقعی Supabase انجام می‌شود و خواندن داده‌ها
+        فقط برای کاربران احراز هویت‌شده مجاز است (سیاست‌های RLS).<br>
+        <b>حالت دمو:</b> رمز فقط در همین مرورگر ذخیره می‌شود و محافظت واقعی نیست.<br>
+        این صفحه برای موتورهای جستجو بسته است (noindex + robots.txt).
       </p>
     </div>
   </section>

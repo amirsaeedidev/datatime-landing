@@ -77,6 +77,7 @@
       } catch (e) {}
     },
     hasAuthToken: function () { return !!authToken; },
+    getAuthToken: function () { return authToken || (CFG.SUPABASE_ANON_KEY || ""); },
 
     login: function (email, password) {
       return fetch(String(CFG.SUPABASE_URL).replace(/\/+$/, "") + "/auth/v1/token?grant_type=password", {
@@ -93,6 +94,30 @@
     },
 
     logout: function () { store.setAuthToken(null); },
+
+    /* ===== آپلود عکس به Supabase Storage ===== */
+    uploadImage: function (file) {
+      if (!CLOUD) {
+        return Promise.reject(new Error("ابتدا Supabase را در config.js وصل کنید."));
+      }
+      var name = "blog/" + Date.now() + "-" +
+        String(file.name || "image").replace(/[^\w.-]/g, "_");
+      return fetch(String(CFG.SUPABASE_URL).replace(/\/+$/, "") +
+        "/storage/v1/object/article-images/" + name, {
+        method: "POST",
+        headers: {
+          "apikey": CFG.SUPABASE_ANON_KEY,
+          "Authorization": "Bearer " + (authToken || CFG.SUPABASE_ANON_KEY),
+          "Content-Type": file.type || "image/jpeg",
+          "x-upsert": "true"
+        },
+        body: file
+      }).then(function (res) {
+        if (!res.ok) throw new Error("آپلود ناموفق: " + res.status);
+        return String(CFG.SUPABASE_URL).replace(/\/+$/, "") +
+          "/storage/v1/object/public/article-images/" + name;
+      });
+    },
 
     /* ===== نمایندگان ===== */
     listAgents: function () {
@@ -185,7 +210,7 @@
       );
     },
 
-    /* ===== مقالات (منتشرشده از ربات تلگرام) ===== */
+    /* ===== مقالات ===== */
     listArticles: function () {
       if (CLOUD) return api("GET", "articles", null, "select=*&order=created_at.desc")
         .catch(function () { return []; });

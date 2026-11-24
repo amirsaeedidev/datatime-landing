@@ -23,14 +23,14 @@ window.DT_CONFIG = {
   SITE_URL: "https://amirsaeedidev.github.io/datatime-landing",
 
   /* --- Supabase (عمومی طبق طراحی) --- */
-  SUPABASE_URL: "",        // مثال: "https://xxxx.supabase.co"
-  SUPABASE_ANON_KEY: "",   // کلید anon از Settings → API
+  SUPABASE_URL: "https://zeqleinqtzylqjwvtawp.supabase.co",        // مثال: "https://xxxx.supabase.co"
+  SUPABASE_ANON_KEY: "sb_publishable_cvQgVMiiP9_zjxIBP5pswA_jQPP8Nu-",   // کلید anon از Settings → API
 
   /* --- تابع اعلان تلگرام (سمت سرور) ---
      آدرس تابع notify که در Supabase Deploy می‌کنید:
      https://<ref>.supabase.co/functions/v1/notify
      توکن ربات در آن تابع (Secret) نگه داشته می‌شود، نه این‌جا. */
-  NOTIFY_FUNCTION_URL: "",
+  NOTIFY_FUNCTION_URL: "https://zeqleinqtzylqjwvtawp.supabase.co/functions/v1/notify",
 
   /* --- وب‌هوک فرم (اختیاری) --- */
   FORM_ENDPOINT: ""

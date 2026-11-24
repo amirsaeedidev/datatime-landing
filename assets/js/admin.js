@@ -4,6 +4,7 @@
    • حالت ابری: ورود واقعی با Supabase Auth (ایمیل + رمز)
      و دسترسی به داده‌ها طبق سیاست‌های RLS.
    • حالت دمو: رمز محلی در مرورگر (فقط برای تست).
+   • انتشار مقاله از پنل: از طریق تابع telegram-webhook با توکن مدیر.
    ============================================================ */
 (function () {
   "use strict";
@@ -29,6 +30,10 @@
       return new Intl.DateTimeFormat("fa-IR", { weekday: "short" }).format(new Date(iso + "T12:00:00"));
     } catch (e) { return iso.slice(5); }
   }
+  function publishUrl() {
+    var C = window.DT_CONFIG || {};
+    return String(C.PUBLISH_FUNCTION_URL || "").trim();
+  }
 
   /* ---------- رمز محلی (فقط حالت دمو) ---------- */
   function hash(s) {
@@ -45,6 +50,7 @@
     panel.hidden = false;
     renderMode();
     initTelegramSettings();
+    initPublishStatus();
     loadAll();
   }
 
@@ -59,8 +65,7 @@
       if (emailField) emailField.style.display = "";
       var note = $("#gateNote");
       if (note) {
-        note.innerHTML = "هنوز کاربر مدیر نساخته‌اید؟ در داشبورد Supabase:\\n" +
-          "<b>Authentication → Users → Add user</b> (Email + Password) — و سپس با همان ایمیل/رمز وارد شوید.";
+        note.innerHTML = "کاربر مدیر را از داشبورد Supabase بسازید:\n<b>Authentication → Users → Add user</b>";
         note.style.whiteSpace = "pre-line";
       }
     } else {
@@ -336,7 +341,7 @@
       : '<tr><td colspan="3" class="empty-note">هنوز بازدیدی ثبت نشده است.</td></tr>';
   }
 
-  /* ---------- مقالات ---------- */
+  /* ---------- مقالات: لیست ---------- */
   function renderArticles() {
     var body = $("#articlesBody");
     if (!body) return;
@@ -347,18 +352,119 @@
             "<td>" + esc(a.cat || "مقاله") + "</td>" +
             "<td>" + esc(a.date || "") + "</td>" +
             '<td><a href="blog/' + esc(a.slug) + '.html" target="_blank" rel="noopener" style="font-weight:700;color:#33415c">مشاهده ↗</a></td>' +
-            '<td><button class="btn btn-danger btn-sm" data-adel="' + esc(a.id) + '">حذف رکورد</button></td>' +
+            '<td><button class="btn btn-danger btn-sm" data-adel="' + esc(a.id) + '" data-aslug="' + esc(a.slug) + '">حذف کامل</button></td>' +
             "</tr>";
         }).join("")
-      : '<tr><td colspan="5" class="empty-note">هنوز مقاله‌ای از تلگرام منتشر نشده است. راهنما در README.</td></tr>';
+      : '<tr><td colspan="5" class="empty-note">هنوز مقاله‌ای منتشر نشده است.</td></tr>';
 
     body.querySelectorAll("[data-adel]").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        if (!confirm("فقط رکورد این مقاله از لیست پاک شود؟ (فایل مقاله باقی می‌ماند)")) return;
-        store.deleteArticle(btn.dataset.adel).then(loadAll);
+        var slug = btn.dataset.aslug;
+        var url = publishUrl();
+        var token = store.getAuthToken ? store.getAuthToken() : "";
+
+        if (url && token && IS_CLOUD) {
+          if (!confirm("مقاله کامل حذف شود؟ (فایل روی سایت + رکورد)")) return;
+          fetch(url, {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "delete", slug: slug })
+          }).then(function (r) { return r.json(); }).then(function (j) {
+            if (j.ok) loadAll(); else alert("خطا: " + (j.error || "نامشخص"));
+          }).catch(function (e) { alert("خطا: " + e.message); });
+        } else {
+          if (!confirm("فقط رکورد حذف شود؟ (فایل مقاله با /delete در ربات حذف می‌شود)")) return;
+          store.deleteArticle(btn.dataset.adel).then(loadAll);
+        }
       });
     });
   }
+
+  /* ---------- مقالات: ویرایشگر و انتشار ---------- */
+  function initPublishStatus() {
+    var el = $("#pubStatus");
+    if (!el) return;
+    el.textContent = publishUrl()
+      ? "تابع انتشار تنظیم شده ✓"
+      : "PUBLISH_FUNCTION_URL در config.js هنوز تنظیم نشده است.";
+  }
+
+  $("#artInsertImg").addEventListener("click", function () {
+    var statusEl = $("#artStatus");
+    var input = $("#artImage");
+    var file = input && input.files && input.files[0];
+    if (!file) { statusEl.textContent = "ابتدا یک عکس انتخاب کنید."; return; }
+    if (!store.uploadImage) { statusEl.textContent = "ماژول آپلود در دسترس نیست."; return; }
+
+    statusEl.textContent = "در حال آپلود عکس به Supabase Storage…";
+    store.uploadImage(file).then(function (url) {
+      var ta = $("#artBody");
+      var md = "![عکس](" + url + ")\n";
+      var pos = ta.selectionStart || ta.value.length;
+      ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
+      statusEl.textContent = "عکس آپلود شد و در متن درج شد ✓ (" + url + ")";
+    }).catch(function (e) {
+      statusEl.textContent = "آپلود ناموفق: " + (e.message || e);
+    });
+  });
+
+  $("#publishBtn").addEventListener("click", function () {
+    var statusEl = $("#artStatus");
+    var url = publishUrl();
+    var token = store.getAuthToken ? store.getAuthToken() : "";
+
+    if (!url) {
+      statusEl.textContent = "ابتدا PUBLISH_FUNCTION_URL (آدرس تابع telegram-webhook) را در config.js تنظیم کنید.";
+      return;
+    }
+    if (IS_CLOUD && !token) {
+      statusEl.textContent = "ابتدا وارد شوید.";
+      return;
+    }
+
+    var title = $("#artTitle").value.trim();
+    var body = $("#artBody").value.trim();
+    if (!title || !body) { statusEl.textContent = "عنوان و متن مقاله الزامی است."; return; }
+
+    var payload = {
+      action: "publish",
+      title: title,
+      slug: $("#artSlug").value.trim(),
+      cat: $("#artCat").value.trim(),
+      body: body
+    };
+
+    var btn = this;
+    btn.disabled = true;
+    statusEl.textContent = "در حال انتشار… (ساخت فایل سئوشده + آپدیت sitemap)";
+
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        return { status: r.status, j: j };
+      });
+    }).then(function (res) {
+      if (res.j && res.j.ok) {
+        statusEl.innerHTML =
+          "✅ مقاله منتشر شد: <a href=\"" + esc(res.j.url) + "\" target=\"_blank\" rel=\"noopener\" style=\"font-weight:700;color:#33415c\">" +
+          esc(res.j.url) + "</a> (تا ~۱ دقیقه دیگر لایو می‌شود)";
+        $("#articleForm").reset();
+        loadAll();
+      } else {
+        statusEl.textContent = "❌ خطا: " + ((res.j && res.j.error) || res.status);
+      }
+    }).catch(function (e) {
+      statusEl.textContent = "❌ خطا: " + (e && e.message ? e.message : e);
+    }).finally(function () {
+      btn.disabled = false;
+    });
+  });
 
   /* ---------- تنظیمات: اعلان تلگرام ---------- */
   function initTelegramSettings() {
@@ -383,7 +489,7 @@
         DTNotify.test().then(function (ok) {
           statusEl.textContent = ok
             ? "پیام تست ارسال شد ✓ تلگرام را چک کنید."
-            : "ارسال ناموفق — Secrets تابع notify (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) و Verify JWT را بررسی کنید.";
+            : "ارسال ناموفق — Secrets تابع notify (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) را بررسی کنید.";
         });
       });
     }
@@ -403,7 +509,7 @@
   });
 
   $("#clearData").addEventListener("click", function () {
-    if (!confirm("تمام داده‌های محلی (نمایندگان، فروش‌ها، بازدیدها، مقالات) پاک شود؟")) return;
+    if (!confirm("تمام داده‌های محلی پاک شود؟")) return;
     try {
       localStorage.removeItem("dt_agents");
       localStorage.removeItem("dt_sales");
